@@ -8,3 +8,7 @@
 #   author:     dpomondo
 #   site:       github.com/dpomondo/zyplot
 # -----------------------------------------------------------------------------
+
+
+def zyscatter(xvals, yvals):
+    pass
