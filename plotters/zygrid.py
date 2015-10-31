@@ -44,7 +44,8 @@ def zygrid(*iterables, **kwargs):
     # set up the crucial variables
     if kwargs.get('row_names', None) is not None:
         row_names = kwargs['row_names']
-        row_name_width = max(list(n for n in row_names if n is not None)) + 2
+        row_name_width = max(list(
+                             len(n) for n in row_names if n is not None)) + 2
     else:
         row_names = None
         row_name_width = 0
@@ -67,7 +68,7 @@ def zygrid(*iterables, **kwargs):
     if kwargs.get('column_names', None) is not None:
         #  column_names = kwargs['column_names']
         column_names = ' ' * row_name_width
-        for nam in column_names:
+        for nam in kwargs['column_names']:
             column_names += '{:^{wid}}'.format(nam if len(nam) < box_width else
                                                nam[:box_width - 4] + '...',
                                                wid=box_width)
@@ -95,17 +96,29 @@ def zygrid(*iterables, **kwargs):
             temp = ''.join(list(format_func(it) for it in iterables[i]))
         res.append(r_nam + temp)
 
+    if column_names is not None:
+        res.insert(0, column_names)
     return res
 
 
 def main():
     import random
-    #  import string
+    import string
     test1 = []
     for i in range(10):
-        test1.append(random.sample(range(100), 10))
+        test1.append(random.sample(range(100000), 10))
+    rw_nams = []
+    for i in range(10):
+        rw_nams.append(''.join(random.sample(string.ascii_lowercase, 
+                                             random.randint(1, 10))))
 
-    res = zygrid(*test1)
+    frmt_dic = {
+    #  frmt_dic = {'box_width': 10,
+                'column_names': ['a', 'b', 'c', 'd', 'e',
+                                 'f', 'g', 'h', 'i', 'h'],
+                'row_names': rw_nams}
+
+    res = zygrid(*test1, **frmt_dic)
     print("Testing 10x10 grid...\nresult is {} lines long".format(len(res)))
     for lin in res:
         print(lin)
