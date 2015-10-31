@@ -15,29 +15,101 @@ if home_dir not in sys.path:
     sys.path.append(home_dir)
 import utils.zyutils as zyutils
 
-def zygrid(*args, **kwargs):
+
+def zygrid(*iterables, **kwargs):
     """ Takes lists, returns them formatted as a printable table.
 
-        *args:      One list for each line of the table. Formatted either as
-                    a tuple `(name, [x, x, ...])` or as a list with the first
-                    item being the row name.
-                    Row names can be `None` or empty strings.
+        *iterables:     Multiple same-length lists or tuples. These can be
+                        either rows or columns depending on whether the 'row'
+                        arg in kwargs is True or False. 
+        *kwargs:        Formatting args, passed in as a dictionary. Options
+                        include:
+                        True/False options:
+                        'row':      whether *iterables are to be formatted as
+                                    rows or columns.
+                        'color':    whether each box is formatted with itself,
+                                    or with an optional passed in color 
+                                    function.
+                        'wrap':     whether or not rows are wrapped after
+                                    a certain length.
 
-        **kwargs    dictionary contaiing format specifications. 
+                        Options with arguments:
+                        'column_names':
+                                        optional column names
+                        'row_names':    optional row names
+                        'box_width':    otherwise box_width will be set as
+                                    a function of the widest item
         """
-    
-    row_names = list(zed[0] for zed in args)
-    collected = []
-    coll_widths = []
-    for arg in args:
-        collected.append(arg[1] if len(arg) == 2 else arg[1:])
-        coll_widths.append(max(len(str(x)) for x in collected[-1] if x is not
-                           None))
 
-    row_name_width = max(list(len(x) for x in row_names if x is not None))
+    # set up the crucial variables
+    if kwargs.get('row_names', None) is not None:
+        row_names = kwargs['row_names']
+        row_name_width = max(list(n for n in row_names if n is not None)) + 2
+    else:
+        row_names = None
+        row_name_width = 0
+
     if kwargs.get('box_width', None) is not None:
         box_width = kwargs['box_width']
     else:
-        box_width = max(coll_widths)
+        box_width = 0
+        for it in iterables:
+            for i in it:
+                if len(str(i)) > box_width:
+                    box_width = len(str(i))
+        box_width += 1      # make sure there is SOME differentiation!
+
+    if kwargs.get('color', None) is not None:
+        format_func = lambda x: "{}{:^{wid}}{}".format(*x, wid=box_width)
+    else:
+        format_func = lambda x: "{:^{wid}}".format(str(x), wid=box_width)
+
+    if kwargs.get('column_names', None) is not None:
+        #  column_names = kwargs['column_names']
+        column_names = ' ' * row_name_width
+        for nam in column_names:
+            column_names += '{:^{wid}}'.format(nam if len(nam) < box_width else
+                                               nam[:box_width - 4] + '...',
+                                               wid=box_width)
+    else:
+        column_names = None
+
+    rows = kwargs.get('row', True)
+
+    # amke the strings!
+    res = []
+    if rows is False:
+        ind = range(len(iterables[0]))
+    else:
+        ind = range(len(iterables))
+
+    for i in ind:
+        if row_names is None:
+            r_nam = ''
+        else:
+            r_nam = "{:>{wid}}: ".format(row_names[i],
+                                         wid=row_name_width - 2)
+        if rows is False:
+            temp = ''.join(list(format_func(it[i]) for it in iterables))
+        else:
+            temp = ''.join(list(format_func(it) for it in iterables[i]))
+        res.append(r_nam + temp)
+
+    return res
 
 
+def main():
+    import random
+    #  import string
+    test1 = []
+    for i in range(10):
+        test1.append(random.sample(range(100), 10))
+
+    res = zygrid(*test1)
+    print("Testing 10x10 grid...\nresult is {} lines long".format(len(res)))
+    for lin in res:
+        print(lin)
+
+
+if __name__ == '__main__':
+    main()
