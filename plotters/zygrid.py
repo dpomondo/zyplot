@@ -21,14 +21,14 @@ def zygrid(*iterables, **kwargs):
 
         *iterables:     Multiple same-length lists or tuples. These can be
                         either rows or columns depending on whether the 'row'
-                        arg in kwargs is True or False. 
+                        arg in kwargs is True or False.
         *kwargs:        Formatting args, passed in as a dictionary. Options
                         include:
                         True/False options:
                         'rows':     whether *iterables are to be formatted as
                                     rows or columns.
                         'color':    whether each box is formatted with itself,
-                                    or with an optional passed in color 
+                                    or with an optional passed in color
                                     function.
                         'wrap':     whether or not rows are wrapped after
                                     a certain length.
@@ -54,11 +54,19 @@ def zygrid(*iterables, **kwargs):
         box_width = kwargs['box_width']
     else:
         box_width = 0
-        for it in iterables:
-            for i in it:
-                if len(str(i)) > box_width:
-                    box_width = len(str(i))
-        box_width += 1      # make sure there is SOME differentiation!
+        if kwargs.get('color', False) is False:
+            for it in iterables:
+                for i in it:
+                    if len(str(i)) > box_width:
+                        box_width = len(str(i))
+        else:
+            # each object it in iterables should be a 3-tuple, with a color
+            # code as 0, the table entry as 1, and a color clear code as 2
+            for it in iterables:
+                for i in it:
+                    if len(str(i[1])) > box_width:
+                        box_width = len(str(i[1]))
+        box_width += 1      # make sure there is SOME space between!
 
     if kwargs.get('color', None) is not None:
         format_func = lambda x: "{}{:^{wid}}{}".format(*x, wid=box_width)
@@ -112,13 +120,12 @@ def main():
                                    10))
     rw_nams = []
     for i in range(len(test1)):
-        rw_nams.append(''.join(random.sample(string.ascii_lowercase, 
+        rw_nams.append(''.join(random.sample(string.ascii_lowercase,
                                              random.randint(1, 10))))
 
-    frmt_dic = {
-    #  frmt_dic = {'box_width': 10,
-                'column_names': ['a', 'b', 'c', 'd', 'e',
+    frmt_dic = {'column_names': ['a', 'b', 'c', 'd', 'e',
                                  'f', 'g', 'h', 'i', 'h'],
+                #  'box_width': 10,
                 'row_names': rw_nams}
 
     res = zygrid(*test1, **frmt_dic)
@@ -131,7 +138,7 @@ def main():
     test2 = []
     for i in range(5):
         test2.append(random.sample(range(1000), 10))
-    
+
     frmt_dic2 = {'rows':    False
                  }
 
@@ -143,6 +150,28 @@ def main():
     for lin in res2:
         print(lin)
 
+    # third test... colors!
+    print("Testing color formatting & tuple unpacking...")
+    test3 = []
+    clear = '\033[0m'
+
+    def color_maker():
+        return "\033[38;5;{}m\033[48;5;{}m".format(random.randint(0, 255),
+                                                   random.randint(0, 255))
+    for i in range(8):
+        test3.append([])
+        for j in range(10):
+            test3[i].append((color_maker(), random.randint(0, 100000), clear))
+    rw_nams = []
+    for i in range(len(test3)):
+        rw_nams.append(''.join(random.sample(string.ascii_lowercase,
+                                             random.randint(1, 10))))
+    frmt_dic3 = {'color':    True,
+                 'row_names': rw_nams}
+
+    res = zygrid(*test3, **frmt_dic3)
+    for lin in res:
+        print(lin)
 
 if __name__ == '__main__':
     main()
