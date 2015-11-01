@@ -25,7 +25,7 @@ def zygrid(*iterables, **kwargs):
         *kwargs:        Formatting args, passed in as a dictionary. Options
                         include:
                         True/False options:
-                        'row':      whether *iterables are to be formatted as
+                        'rows':     whether *iterables are to be formatted as
                                     rows or columns.
                         'color':    whether each box is formatted with itself,
                                     or with an optional passed in color 
@@ -75,7 +75,7 @@ def zygrid(*iterables, **kwargs):
     else:
         column_names = None
 
-    rows = kwargs.get('row', True)
+    rows = kwargs.get('rows', True)
 
     # amke the strings!
     res = []
@@ -104,11 +104,14 @@ def zygrid(*iterables, **kwargs):
 def main():
     import random
     import string
+    # test number one...
     test1 = []
-    for i in range(10):
-        test1.append(random.sample(range(100000), 10))
+    for i in range(11):
+        test1.append(random.sample(range(100000) if random.random() > 0.5
+                                   else range(1000),
+                                   10))
     rw_nams = []
-    for i in range(10):
+    for i in range(len(test1)):
         rw_nams.append(''.join(random.sample(string.ascii_lowercase, 
                                              random.randint(1, 10))))
 
@@ -121,6 +124,23 @@ def main():
     res = zygrid(*test1, **frmt_dic)
     print("Testing 10x10 grid...\nresult is {} lines long".format(len(res)))
     for lin in res:
+        print(lin)
+
+    # test number two, includes row = False
+    print("\nTest 2, 5 columns with 10 rows")
+    test2 = []
+    for i in range(5):
+        test2.append(random.sample(range(1000), 10))
+    
+    frmt_dic2 = {'rows':    False
+                 }
+
+    res = zygrid(*test2, **frmt_dic2)
+    res2 = zygrid(*test2)
+    for lin in res:
+        print(lin)
+    print("Same table, but with 'rows' set to default (True)")
+    for lin in res2:
         print(lin)
 
 
