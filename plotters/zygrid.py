@@ -16,6 +16,42 @@ if home_dir not in sys.path:
 import utils.zyutils as zyutils
 
 
+def row_names_generator(row_names=None):
+    if row_names is None:
+        def yielder():
+            while True:
+                yield ''
+        return 0, yielder()
+    else:
+        width = max(list(len(x) for x in row_names if x is not None))
+
+        def yielder():
+            nams = row_names
+            while nams:
+                yield "{:>{wid}}: ".format(nams[0], wid=width)
+                #  yield row_names[0]
+                nams = nams[1:]
+        return width + 2, yielder()
+
+
+def row_content_generator(iterables, format_func, rows=True):
+    if rows is False:
+        ind = range(len(iterables[0]))
+        #  temp = ''.join(list(format_func(it[i]) for it in iterables))
+
+        def yielder():
+            for i in ind:
+                yield ''.join(list(format_func(it[i]) for it in iterables))
+        return yielder()
+    else:
+        ind = range(len(iterables))
+
+        def yielder():
+            for i in ind:
+                yield ''.join(list(format_func(it) for it in iterables[i]))
+        return yielder()
+
+
 def zygrid(*iterables, **kwargs):
     """ Takes lists, returns them formatted as a printable table.
 
@@ -42,13 +78,8 @@ def zygrid(*iterables, **kwargs):
         """
 
     # set up the crucial variables
-    if kwargs.get('row_names', None) is not None:
-        row_names = kwargs['row_names']
-        row_name_width = max(list(
-                             len(n) for n in row_names if n is not None)) + 2
-    else:
-        row_names = None
-        row_name_width = 0
+    row_name_width, row_name_iterator = row_names_generator(
+        kwargs.get('row_names', None))
 
     if kwargs.get('box_width', None) is not None:
         box_width = kwargs['box_width']
@@ -84,6 +115,7 @@ def zygrid(*iterables, **kwargs):
         column_names = None
 
     rows = kwargs.get('rows', True)
+    row_content_iterator = row_content_generator(iterables, format_func, rows)
 
     # amke the strings!
     res = []
@@ -93,15 +125,12 @@ def zygrid(*iterables, **kwargs):
         ind = range(len(iterables))
 
     for i in ind:
-        if row_names is None:
-            r_nam = ''
-        else:
-            r_nam = "{:>{wid}}: ".format(row_names[i],
-                                         wid=row_name_width - 2)
-        if rows is False:
-            temp = ''.join(list(format_func(it[i]) for it in iterables))
-        else:
-            temp = ''.join(list(format_func(it) for it in iterables[i]))
+        r_nam = next(row_name_iterator)
+        temp = next(row_content_iterator)
+        #  if rows is False:
+            #  temp = ''.join(list(format_func(it[i]) for it in iterables))
+        #  else:
+            #  temp = ''.join(list(format_func(it) for it in iterables[i]))
         res.append(r_nam + temp)
 
     if column_names is not None:
