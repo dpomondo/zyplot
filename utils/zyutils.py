@@ -73,3 +73,19 @@ def dict_to_obj(dic):
     for key in dic:
         setattr(temp, key, dic[key])
     return temp
+
+
+def main():
+    # test width func
+    width = get_terminal_width()
+    if width:
+        print("{}: {}".format("width", width))
+
+    # test height func
+    height = get_terminal_height()
+    if height:
+        print("{}: {}".format("height", height))
+
+
+if __name__ == '__main__':
+    main()
