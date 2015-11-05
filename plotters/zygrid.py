@@ -83,7 +83,7 @@ def min_box_width(iterables, buffer=0, color=False):
 
 def max_box_width(num_boxes, name_width=0, padding=0):
     screen_width = zyutils.get_terminal_width()
-    total_boxes_width = screen_width - name_width - padding
+    total_boxes_width = screen_width - name_width - (2 * padding)
     print("Screen is {} wide, fitting {} boxes".format(screen_width,
                                                        num_boxes))
     return total_boxes_width // num_boxes
@@ -103,15 +103,27 @@ def zygrid(*iterables, **kwargs):
                         'color':    whether each box is formatted with itself,
                                     or with an optional passed in color
                                     function.
+                        Options with arguments:
                         'wrap':     whether or not rows are wrapped after
                                     a certain length.
-
-                        Options with arguments:
+                                    Options:
+                                        int: wrap after that many columns
+                                        'screen': wrap after as many columns
+                                        will fit on terminal screen
                         'column_names':
                                         optional column names
+                        'column_names_trim_func':
+                                    function used to trim column names longer
+                                    than box_width
                         'row_names':    optional row names
                         'box_width':    otherwise box_width will be set as
                                     a function of the widest item
+                        'side_padding': buffer of blank spaces to the right and
+                                    left of the formatted table
+                        'table_justification':
+                                    'right': table formatted to right margin
+                                    'center': table centered
+                                    'left' or None: formatted to left margin
         """
 
     # set up the crucial variables
@@ -148,21 +160,32 @@ def zygrid(*iterables, **kwargs):
                                   color=kwargs.get('color', False))
     screen_width = zyutils.get_terminal_width()
     width_residual = screen_width - (num_boxes * box_width) - row_name_width
-    if kwargs.get('table_justification', None) == 'left':
+    if kwargs.get('table_justification', None) == 'right':
         right_pad = ' ' * width_residual
     elif kwargs.get('table_justification', None) == 'center':
         right_pad = ' ' * (width_residual // 2)
     else:
-        right_pad = ''
+        if kwargs.get('side_padding', 0) > 0:
+            right_pad = ' ' * kwargs['side_padding']
+        else:
+            right_pad = ''
 
     # prepare the column names
     if kwargs.get('column_names', None) is not None:
         #  column_names = kwargs['column_names']
         column_names = ' ' * row_name_width
-        for nam in kwargs['column_names']:
-            column_names += '{:^{wid}}'.format(nam if len(nam) < box_width else
-                                               nam[:box_width - 4] + '...',
-                                               wid=box_width)
+        if kwargs.get('column_names_trim_func', None) is None:
+            for nam in kwargs['column_names']:
+                column_names += '{:^{wid}}'.format(nam if len(nam) < box_width
+                                                   else nam[:box_width - 4]
+                                                   + '...',
+                                                   wid=box_width)
+        else:
+            for nam in kwargs['column_names']:
+                column_names += '{:^{wid}}'.format(
+                    nam if len(nam) < box_width else
+                    kwargs['column_names_trim_func'](nam)[:box_width],
+                    wid=box_width)
         column_names = right_pad + column_names
     else:
         column_names = None
@@ -207,10 +230,11 @@ def main():
     for lin in res:
         print(lin)
 
-    print("\nTesting same, but with bow_width set to 'max' and" +
-          " table_justification set to 'left'")
+    print("\nTesting same, but with bow_width set to 'max'," +
+          " table_justification set to 'right', and trim function")
+    frmt_dic['column_names_trim_func'] = lambda x: '<short>'
     frmt_dic['box_width'] = 'max'
-    frmt_dic['table_justification'] = 'left'
+    frmt_dic['table_justification'] = 'right'
     res = zygrid(*test1, **frmt_dic)
     for lin in res:
         print(lin)
@@ -226,10 +250,15 @@ def main():
 
     res = zygrid(*test2, **frmt_dic2)
     res2 = zygrid(*test2)
+    frmt_dic2['side_padding'] = 5
+    res3 = zygrid(*test2, **frmt_dic2)
     for lin in res:
         print(lin)
     print("\nSame table, but with 'rows' set to default (True)")
     for lin in res2:
+        print(lin)
+    print("Side Padding set to {}".format(frmt_dic2['side_padding']))
+    for lin in res3:
         print(lin)
 
     # third test... colors!
@@ -258,6 +287,12 @@ def main():
     frmt_dic3['table_justification'] = 'center'
     res = zygrid(*test3, **frmt_dic3)
     print("\nSame, but with box_width set to 'max' and cenetered")
+    for lin in res:
+        print(lin)
+
+    frmt_dic3['side_padding'] = 6
+    res = zygrid(*test3, **frmt_dic3)
+    print("Side Padding set to {}".format(frmt_dic3['side_padding']))
     for lin in res:
         print(lin)
 
