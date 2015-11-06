@@ -39,10 +39,17 @@ def row_names_generator(row_names=None):
 
         def yielder():
             nams = row_names
-            while nams:
-                yield "{:>{wid}}: ".format(nams[0], wid=width)
-                #  yield row_names[0]
-                nams = nams[1:]
+            #  while nams:
+                #  yield "{:>{wid}}: ".format(nams[0], wid=width)
+                #  #  yield row_names[0]
+                #  nams = nams[1:]
+            zindex = 0
+            len_nams = len(nams)
+            while True:
+                yield "{:>{wid}}: ".format(nams[zindex % len_nams],
+                                           wid=width)
+                zindex += 1
+
         return width + 2, yielder()
 
 
@@ -89,6 +96,51 @@ def max_box_width(num_boxes, name_width=0, padding=0):
     return total_boxes_width // num_boxes
 
 
+
+def wrap_iterables(iterables, screen_width, minimum_box_width,
+        row_name_width, rows, wrap_target, color_flag):
+    """ yarg
+        """
+    if rows is False:
+        num_rows = len(iterables[0])
+        num_boxes = len(iterables)
+    else:
+        num_rows = len(iterables)
+        num_boxes = len(iterables[0])
+
+    verbose = True
+    if verbose:
+        print("Wrapping columns... ", end='')
+    working_width = screen_width - row_name_width
+    if wrap_target == 'max':
+        if row_name_width + (num_boxes * minimum_box_width) <= screen_width:
+            if verbose:
+                print("Max columns fit!")
+            return iterables
+        else:
+            new_num_boxes = working_width // minimum_box_width
+    else:
+        new_num_boxes = int(wrap_target)
+    if verbose:
+        print("New number of columns: {}".format(new_num_boxes))
+    res = []
+    if rows is True:
+        even_cols = len(iterables[0]) // new_num_boxes
+        residue = len(iterables[0]) % new_num_boxes
+        for ind in range(even_cols):
+            for jin in range(num_rows):
+                res.append(iterables[jin][ind * new_num_boxes : (ind + 1)
+                                          * new_num_boxes])
+        for zin in range(num_rows):
+            temp = iterables[zin][:-residue]
+            for z in range(new_num_boxes - residue):
+                temp.append('' if color_flag is False else ('', '', ''))
+            res.append(temp)
+        return res
+    else:
+        raise NotImplementedError
+
+
 def zygrid(*iterables, **kwargs):
     """ Takes lists, returns them formatted as a printable table.
 
@@ -108,7 +160,7 @@ def zygrid(*iterables, **kwargs):
                                     a certain length.
                                     Options:
                                         int: wrap after that many columns
-                                        'screen': wrap after as many columns
+                                        'max': wrap after as many columns
                                         will fit on terminal screen
                         'column_names':
                                         optional column names
@@ -128,6 +180,20 @@ def zygrid(*iterables, **kwargs):
 
     # set up the crucial variables
     rows = kwargs.get('rows', True)
+    row_name_width, row_name_iterator = row_names_generator(
+        kwargs.get('row_names', None))
+    
+    # are we wrapping the rows:
+    wrap_flag = kwargs.get('wrap', False)
+    screen_width = zyutils.get_terminal_width()
+    minimum_box_width = min_box_width(iterables,
+                                      buffer=kwargs.get('box_buffer', 1),
+                                      color=kwargs.get('color', False))
+    if wrap_flag is not False:
+        iterables = wrap_iterables(iterables, screen_width, minimum_box_width,
+                                   row_name_width, rows, wrap_flag, 
+                                   kwargs.get('color', False))
+
     # first, boxes per row:
     if rows is False:
         num_rows = len(iterables[0])
@@ -143,8 +209,6 @@ def zygrid(*iterables, **kwargs):
         format_func = lambda x: "{:^{wid}}".format(str(x), wid=box_width)
 
     # set up the row contents
-    row_name_width, row_name_iterator = row_names_generator(
-        kwargs.get('row_names', None))
     row_content_iterator = row_content_generator(iterables, format_func, rows)
 
     # get the width of the boxes
@@ -155,10 +219,10 @@ def zygrid(*iterables, **kwargs):
     elif kwargs.get('box_width', None) is not None:
         box_width = kwargs['box_width']
     else:
-        box_width = min_box_width(iterables,
-                                  buffer=kwargs.get('box_buffer', 1),
-                                  color=kwargs.get('color', False))
-    screen_width = zyutils.get_terminal_width()
+        box_width = minimum_box_width
+        #  box_width = min_box_width(iterables,
+                                  #  buffer=kwargs.get('box_buffer', 1),
+                                  #  color=kwargs.get('color', False))
     width_residual = screen_width - (num_boxes * box_width) - row_name_width
     if kwargs.get('table_justification', None) == 'right':
         right_pad = ' ' * width_residual
@@ -291,8 +355,10 @@ def main():
         print(lin)
 
     frmt_dic3['side_padding'] = 6
+    frmt_dic3['wrap'] = 4
     res = zygrid(*test3, **frmt_dic3)
-    print("Side Padding set to {}".format(frmt_dic3['side_padding']))
+    print("Side Padding set to {} and wrap set to {}".format(
+        frmt_dic3['side_padding'], frmt_dic3['wrap']))
     for lin in res:
         print(lin)
 
