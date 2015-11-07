@@ -121,6 +121,12 @@ def wrap_iterables(iterables, screen_width, minimum_box_width,
             new_num_boxes = working_width // minimum_box_width
     else:
         new_num_boxes = int(wrap_target)
+    if new_num_boxes >= num_boxes:
+        if verbose:
+            print("column wrapping set higher than number of columns...")
+        return iterables
+
+    # do the wrapping!
     if verbose:
         print("New number of columns: {}".format(new_num_boxes))
     res = []
@@ -131,11 +137,12 @@ def wrap_iterables(iterables, screen_width, minimum_box_width,
             for jin in range(num_rows):
                 res.append(iterables[jin][ind * new_num_boxes : (ind + 1)
                                           * new_num_boxes])
-        for zin in range(num_rows):
-            temp = iterables[zin][-residue:]
-            for z in range(new_num_boxes - residue):
-                temp.append('' if color_flag is False else ('', '', ''))
-            res.append(temp)
+        if residue > 0:
+            for zin in range(num_rows):
+                temp = iterables[zin][-residue:]
+                for z in range(new_num_boxes - residue):
+                    temp.append('' if color_flag is False else ('', '', ''))
+                res.append(temp)
         return res
     else:
         raise NotImplementedError
@@ -355,13 +362,14 @@ def main():
         print(lin)
 
     frmt_dic3['side_padding'] = 0
-    frmt_dic3['wrap'] = 4
     frmt_dic3['box_width'] = None
-    res = zygrid(*test3, **frmt_dic3)
-    print("Side Padding set to {} and wrap set to {}".format(
-        frmt_dic3['side_padding'], frmt_dic3['wrap']))
-    for lin in res:
-        print(lin)
+    print("\nIterating through different wrap settings...")
+    for i in range(2,14):
+        frmt_dic3['wrap'] = i
+        res = zygrid(*test3, **frmt_dic3)
+        print("Wrap set to {}".format(frmt_dic3['wrap']))
+        for lin in res:
+            print(lin)
 
 
 if __name__ == '__main__':
