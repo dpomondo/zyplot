@@ -132,7 +132,7 @@ def wrap_iterables(iterables, screen_width, minimum_box_width,
                 res.append(iterables[jin][ind * new_num_boxes : (ind + 1)
                                           * new_num_boxes])
         for zin in range(num_rows):
-            temp = iterables[zin][:-residue]
+            temp = iterables[zin][-residue:]
             for z in range(new_num_boxes - residue):
                 temp.append('' if color_flag is False else ('', '', ''))
             res.append(temp)
@@ -354,8 +354,9 @@ def main():
     for lin in res:
         print(lin)
 
-    frmt_dic3['side_padding'] = 6
+    frmt_dic3['side_padding'] = 0
     frmt_dic3['wrap'] = 4
+    frmt_dic3['box_width'] = None
     res = zygrid(*test3, **frmt_dic3)
     print("Side Padding set to {} and wrap set to {}".format(
         frmt_dic3['side_padding'], frmt_dic3['wrap']))
