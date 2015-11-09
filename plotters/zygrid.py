@@ -230,7 +230,10 @@ def zygrid(*iterables, **kwargs):
         #  box_width = min_box_width(iterables,
                                   #  buffer=kwargs.get('box_buffer', 1),
                                   #  color=kwargs.get('color', False))
+    box_width = max(box_width, minimum_box_width)
     width_residual = screen_width - (num_boxes * box_width) - row_name_width
+
+    # justification for table
     if kwargs.get('table_justification', None) == 'right':
         right_pad = ' ' * width_residual
     elif kwargs.get('table_justification', None) == 'center':
@@ -362,7 +365,7 @@ def main():
         print(lin)
 
     frmt_dic3['side_padding'] = 0
-    frmt_dic3['box_width'] = None
+    frmt_dic3['box_width'] = 2
     print("\nIterating through different wrap settings...")
     for i in range(2,14):
         frmt_dic3['wrap'] = i
