@@ -101,12 +101,12 @@ def wrap_iterables(iterables, screen_width, minimum_box_width,
         row_name_width, rows, wrap_target, color_flag):
     """ yarg
         """
-    if rows is False:
-        num_rows = len(iterables[0])
-        num_boxes = len(iterables)
-    else:
-        num_rows = len(iterables)
-        num_boxes = len(iterables[0])
+    #  if rows is False:
+        #  num_rows = len(iterables[0])
+        #  num_boxes = len(iterables)
+    #  else:
+    num_rows = len(iterables)
+    num_boxes = len(iterables[0])
 
     verbose = True
     if verbose:
@@ -146,6 +146,18 @@ def wrap_iterables(iterables, screen_width, minimum_box_width,
         return res
     else:
         raise NotImplementedError
+
+
+def rotate_iterables(iterables):
+    res = []
+    for i in range(len(iterables[0])):
+        res.append([])
+
+    for ziter in iterables:
+        for ind in range(len(ziter)):
+            res[ind].append(ziter[ind])
+
+    return res
 
 
 def zygrid(*iterables, **kwargs):
@@ -190,6 +202,11 @@ def zygrid(*iterables, **kwargs):
     row_name_width, row_name_iterator = row_names_generator(
         kwargs.get('row_names', None))
     
+    # next, massage & measure the iterables
+    if rows is False:
+        iterables = rotate_iterables(iterables)
+        rows = True
+
     # are we wrapping the rows:
     wrap_flag = kwargs.get('wrap', False)
     screen_width = zyutils.get_terminal_width()
@@ -201,14 +218,8 @@ def zygrid(*iterables, **kwargs):
                                    row_name_width, rows, wrap_flag, 
                                    kwargs.get('color', False))
 
-    # first, boxes per row:
-    if rows is False:
-        num_rows = len(iterables[0])
-        num_boxes = len(iterables)
-    else:
-        num_rows = len(iterables)
-        num_boxes = len(iterables[0])
-
+    num_rows = len(iterables)
+    num_boxes = len(iterables[0])
     # deal with color vs. no color
     if kwargs.get('color', None) is not None:
         format_func = lambda x: "{}{:^{wid}}{}".format(*x, wid=box_width)
@@ -314,24 +325,29 @@ def main():
         print(lin)
 
     # test number two, includes row = False
-    print("\nTest 2, 5 columns with 10 rows")
     test2 = []
     for i in range(5):
-        test2.append(random.sample(range(1000), 10))
+        test2.append(random.sample(range(1000), 5))
 
     frmt_dic2 = {'rows':    False
                  }
 
+    print("\nTest 2, {} columns with {} rows, 'rows' set to {}".format(
+        len(test2),
+        len(test2[0]),
+        frmt_dic2['rows']))
     res = zygrid(*test2, **frmt_dic2)
-    res2 = zygrid(*test2)
-    frmt_dic2['side_padding'] = 5
-    res3 = zygrid(*test2, **frmt_dic2)
     for lin in res:
         print(lin)
+
     print("\nSame table, but with 'rows' set to default (True)")
+    res2 = zygrid(*test2)
     for lin in res2:
         print(lin)
+
+    frmt_dic2['side_padding'] = 5
     print("Side Padding set to {}".format(frmt_dic2['side_padding']))
+    res3 = zygrid(*test2, **frmt_dic2)
     for lin in res3:
         print(lin)
 
