@@ -108,7 +108,8 @@ def wrap_iterables(iterables, screen_width, minimum_box_width,
     num_rows = len(iterables)
     num_boxes = len(iterables[0])
 
-    verbose = True
+    #  verbose = True
+    verbose = False
     if verbose:
         print("Wrapping columns... ", end='')
     working_width = screen_width - row_name_width
