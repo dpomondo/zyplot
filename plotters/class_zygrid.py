@@ -11,13 +11,70 @@
 
 
 class Zygrid:
-    """ takes multiple iterables, returns a list of formatted lines
-    """
+    """ Return a list of lines, formatted from a matrix of iterables.
+
+        *iterables:     Multiple same-length lists or tuples. These can be
+                        either rows or columns depending on whether the 'row'
+                        arg in kwargs is True or False.
+        *kwargs:        Formatting args, passed in as a dictionary. Options
+                        include:
+                        True/False options:
+                        'rows':     whether *iterables are to be formatted as
+                                    rows or columns.
+                        'color':    whether each box is formatted with itself,
+                                    or with an optional passed in color
+                                    function.
+                        Options with arguments:
+                        'wrap':     whether or not rows are wrapped after
+                                    a certain length.
+                                    Options:
+                                        int: wrap after that many columns
+                                        'max': wrap after as many columns
+                                        will fit on terminal screen
+                        'column_names':
+                                    optional column names
+                        'column_widths':
+                                    Specify how column widths are calculated.
+                                    Default is 'minimum'.
+                                    Options:
+                                        'minimum': uses smallest width that
+                                        fits the largest item for all coumns.
+                                        'flexible': each column is as wide as
+                                        needed to fit the largest item.
+                                        integer: each coumn will be the largest
+                                        of either the value of 'minimum' or the
+                                        passed-in integer.
+                                        NOTE: this conflicts with 'box_width'
+                                        cos I am dumb.
+                        'column_padding':
+                                    Extra width for added to coumns.
+                        'column_names_trim_func':
+                                    function used to trim column names longer
+                                    than box_width
+                        'row_names':    optional row names
+                        'box_width':    otherwise box_width will be set as
+                                    a function of the widest item
+                        'side_padding': buffer of blank spaces to the right and
+                                    left of the formatted table
+                        'table_justification':
+                                    'right': table formatted to right margin
+                                    'center': table centered
+                                    'left' or None: formatted to left margin
+        """
     def __init__(self, iterables, **kwargs):
         self.data = iterables
+        # mebbe 'rows' as kwarg for 'row_flag' is a bad idea...
         self.row_flag = kwargs.get('rows', True)
+        # both column_names and row_names get routed to functions to set their
+        # values
         self.column_names = kwargs.get('column_names', None)
         self.row_names = kwargs.get('row_names', None)
+        # the following are `magic` for now:
+        self.wrap = False
+        self.start = 0
+        self.step = self.stop = self.width
+        # and we store the rest for later
+        self.buffer = kwargs.get('buffer', 1)
         self.kwargs = kwargs
 
     def __getattr__(self, attrname):
@@ -28,16 +85,17 @@ class Zygrid:
             return (len(self.data[0]) if self.row_flag is False else
                     len(self.data))
         elif attrname == 'minimum_box_width':
-            return self.min_box_width(self.data,
-                                      self.kwargs.get('buffer', 1),
+            return self.min_box_width(self.data, self.buffer,
                                       self.kwargs.get('color', False))
         elif attrname == 'box_width':
             # the behavior of this is... problematic
             return self.return_box_width()
         elif attrname in self.kwargs.keys():
             return self.kwargs[attrname]
-        else:
+        elif attrname in self.__dict__.keys():
             return self.__dict__[attrname]
+        else:
+            raise KeyError(attrname)
 
     def __setattr__(self, attrname, value):
         if attrname in ['width', 'length', 'minimum_box_width']:
@@ -46,6 +104,9 @@ class Zygrid:
             self.set_column_names(value)
         elif attrname == 'row_names':
             self.set_row_names(value)
+        elif attrname == 'buffer':
+            value = max(1, value)
+            object.__setattr__(self, attrname, value)
         elif attrname == 'box_width':
             value = max(value, self.minimum_box_width)
             object.__setattr__(self, attrname, value)
@@ -138,9 +199,36 @@ class Zygrid:
         return self.kwargs.get('box_width',
                                self.__dict__.get('box_width',
                                                  self.minimum_box_width))
+    
+    def get_column_widths(self):
+        """ Creates a list of ints for use in formatting columns.    """
+        #  if not hasattr(self, 'column_widths'):
+        if ('column_widths' not in self.kwargs.keys() and 'column_widths' not
+                in self.__dict__.keys()):
+            self.column_widths = self.kwargs.get('column_widths', 'minimum')
+        temp_widths = []
+        if self.column_widths == 'minimum':
+            for i in range(self.stop - self.start):
+                temp_widths.append(self.minimum_box_width)
+        elif isinstance(self.column_widths, int):
+            # here we need to integrate self.box_width properly...
+            temp = max(self.minimum_box_width, self.column_widths)
+            for i in range(self.stop - self.start):
+                temp_widths.append(temp)
+        elif self.column_widths == 'flexible':
+            if self.row_flag is False:
+                raise NotImplementedError
+            else:
+                for i in range(self.stop - self.start):
+                    temp_widths.append(
+                        max(len(str(zit[i])) for zit in self.data) +
+                        self.buffer)
+        return temp_widths
 
     def temp_return_format(self):
         return('col_names', 'line', 'rows', 'blank')
 
     def return_keys(self):
         return self.kwargs.keys()
+
+    #  def 
