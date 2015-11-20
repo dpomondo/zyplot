@@ -69,6 +69,7 @@ class Zygrid:
         self.data = iterables
         # mebbe 'rows' as kwarg for 'row_flag' is a bad idea...
         self.row_flag = kwargs.get('row_flag', True)
+        self.column_widths = kwargs.get('column_widths', 'flexible')
         # both column_names and row_names get routed to functions to set their
         # values
         self.column_names = kwargs.get('column_names', None)
@@ -124,6 +125,11 @@ class Zygrid:
         elif attrname == 'box_width':
             value = max(value, self.minimum_box_width)
             object.__setattr__(self, attrname, value)
+        #  elif attrname == 'column_widths':
+            #  #  self.__col_wid = self.get_column_widths()
+            #  object.__setattr__(self, attrname, value)
+            #  temp = self.get_column_widths()
+            #  object.__setattr__(self, '__col_wid', temp)
         else:
             object.__setattr__(self, attrname, value)
 
@@ -238,7 +244,7 @@ class Zygrid:
         elif self.column_widths == 'flexible':
             if self.row_flag is False:
                 for i in range(self.stop - self.start):
-                    temp.widths.append(
+                    temp_widths.append(
                         max(len(str(zit)) for zit in self.data[i]) +
                         self.padding)
             else:
@@ -299,7 +305,7 @@ class Zygrid:
         return self.kwargs.keys()
 
     def pprinter(self):
-        # call this each time to deal with changes made in the interim...
+        #  set it each time columns_widths gets set...
         self.__col_wid = self.get_column_widths()
         res = []
         for i in range(self.length):
@@ -311,7 +317,6 @@ class Zygrid:
             print(lin)
 
     def format_parser(self, begin=None, end=None, jump=None):
-    #  def format_parser(self, formatter_return_func=self.temp_return_format):
         """ Return a list of formatting functions for use on self.data.
             """
         self.__col_wid = self.get_column_widths()
@@ -322,6 +327,8 @@ class Zygrid:
         # make the list
         formatters_list = []
         # hacktastic defaults for now...
+        # the problem with not wrapping and cutting off columns if row_flag is
+        # False lives HERE somewhere...
         if begin is None:
             begin = self.start
         if end is None:
@@ -337,6 +344,7 @@ class Zygrid:
                                         max(begin + jump, end))))
                 ind += 1
             for ind in range(self.length):
+            #  for ind in range(self.width):
                 for frm in formatter['body']:
                     formatters_list.append((format_func_dic[frm],
                                            (ind, begin,
