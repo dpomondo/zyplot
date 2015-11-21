@@ -81,6 +81,7 @@ class Zygrid:
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
         self.kwargs = kwargs
+        self.verbose = False
 
     def __getattr__(self, attrname):
         if attrname == 'width':
@@ -226,12 +227,12 @@ class Zygrid:
             self.column_widths = self.kwargs.get('column_widths', 'flexible')
         temp_widths = []
         if self.column_widths == 'equal':
-            for i in range(self.stop - self.start):
+            for i in range(self.width):
                 temp_widths.append(self.minimum_box_width)
         elif isinstance(self.column_widths, int):
             # here we need to integrate self.box_width properly...
             temp = max(self.minimum_box_width, self.column_widths)
-            for i in range(self.stop - self.start):
+            for i in range(self.width):
                 temp_widths.append(temp)
         elif self.column_widths == 'columns':
             if self.column_names is None:
@@ -243,12 +244,12 @@ class Zygrid:
                     temp_widths.append(len(nam) + self.padding)
         elif self.column_widths == 'flexible':
             if self.row_flag is False:
-                for i in range(self.stop - self.start):
+                for i in range(self.width):
                     temp_widths.append(
                         max(len(str(zit)) for zit in self.data[i]) +
                         self.padding)
             else:
-                for i in range(self.stop - self.start):
+                for i in range(self.width):
                     temp_widths.append(
                         max(len(str(zit[i])) for zit in self.data) +
                         self.padding)
@@ -284,8 +285,13 @@ class Zygrid:
                 res += '{:<{wid}}'.format(self.row_names[ind],
                                           wid=self.max_list_size(
                                               self.row_names))
+            #  for i in range(10):
             for i in range(stop - start):
-                res += '{:^{wid}}'.format(self.data[ind][i],
+                if self.row_flag is False:
+                    zzz, vvv = i, ind
+                else:
+                    zzz, vvv = ind, i
+                res += '{:^{wid}}'.format(self.data[zzz][vvv],
                                           wid=self.__col_wid[i])
             return res
 
@@ -330,11 +336,14 @@ class Zygrid:
         # the problem with not wrapping and cutting off columns if row_flag is
         # False lives HERE somewhere...
         if begin is None:
-            begin = self.start
+            #  begin = self.start
+            begin = 0
         if end is None:
-            end = self.stop
+            #  end = self.stop
+            end = self.width
         if jump is None:
-            jump = self.step
+            #  jump = self.step
+            jump = self.width
         while begin < end:
             #  for ind in range(len(self.column_names)):
             ind = 0
@@ -362,6 +371,8 @@ class Zygrid:
         funcs = self.format_parser()
         res = []
         for fn in funcs:
+            if self.verbose > 1:
+                print("function: {}\t args: {}, {}, {}".format(fn[0], *fn[1]))
             temp = fn[0](*fn[1])
             if temp is not None:
                 res.append(temp)
