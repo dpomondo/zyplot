@@ -317,7 +317,11 @@ class Zygrid:
         for i in range(self.length):
             res.append('')
             for j in range(self.width):
-                res[-1] += '{:{wid}}'.format(self.data[i][j],
+                if self.row_flag is True:
+                    z, y = i, j
+                else:
+                    y, z = i, j
+                res[-1] += '{:{wid}}'.format(self.data[z][y],
                                              wid=self.__col_wid[j])
         for lin in res:
             print(lin)
