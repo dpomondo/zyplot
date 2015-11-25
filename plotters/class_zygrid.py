@@ -76,8 +76,6 @@ class Zygrid:
         self.row_names = kwargs.get('row_names', None)
         # the following are `magic` for now:
         self.wrap = False
-        self.start = 0
-        self.step = self.stop = self.width
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
         self.kwargs = kwargs
@@ -118,9 +116,10 @@ class Zygrid:
                 raise ValueError(value)
             if value != self.__dict__.get('row_flag', True):
                 object.__setattr__(self, attrname, value)
-                temp = self.column_names
-                self.set_column_names(self.row_names)
-                self.set_row_names(temp)
+                if len(self.column_names) > 0:
+                    temp = self.column_names
+                    self.set_column_names(self.row_names)
+                    self.set_row_names(temp)
             else:
                 object.__setattr__(self, attrname, value)
         elif attrname == 'box_width':
@@ -168,18 +167,20 @@ class Zygrid:
         if cols is None:
             object.__setattr__(self, 'column_names', [])
         else:
-            if len(cols) != self.width:
-                raise ValueError("Number of column names should equal number" +
-                                 " of columns")
+            if self.width % len(cols) != 0:
+            #  if len(cols) != self.width:
+                raise ValueError("Number of columns should be a multiple" +
+                                 " of number of column names")
             object.__setattr__(self, 'column_names', cols[:])
 
     def set_row_names(self, rws):
         if rws is None:
             object.__setattr__(self, 'row_names', [])
         else:
-            if len(rws) != self.length:
-                raise ValueError("Number of row names should equal number" +
-                                 " of rows")
+            if  self.length % len(rws) != 0:
+            #  if len(rws) != self.length:
+                raise ValueError("Number of rows should be a multiple" +
+                                 " of number of row names")
             object.__setattr__(self, 'row_names', rws[:])
 
     def return_box_format_func(self):
@@ -266,14 +267,15 @@ class Zygrid:
                 return None
             col_name_trim_func = self.kwargs.get('col_trim_func',
                 lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
-            res = ' ' * self.max_list_size(self.row_names)
+            res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(stop - start):
-                res += col_name_trim_func(self.column_names[i],
-                                          self.__col_wid[i])
+                res += col_name_trim_func(
+                    self.column_names[i % len(self.column_names)],
+                    self.__col_wid[i])
             return res
 
         def line(_, start, stop):
-            res = ' ' * self.max_list_size(self.row_names)
+            res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(stop - start):
                 res += '+'
                 res += '-' * (self.__col_wid[i] - 1)
@@ -282,9 +284,9 @@ class Zygrid:
         def rows(ind, start, stop):
             res = ''
             if len(self.row_names) > 0:
-                res += '{:<{wid}}'.format(self.row_names[ind],
-                                          wid=self.max_list_size(
-                                              self.row_names))
+                res += '{:<{wid}} '.format(
+                    self.row_names[ind % len(self.row_names)],
+                    wid=self.max_list_size(self.row_names))
             #  for i in range(10):
             for i in range(stop - start):
                 if self.row_flag is False:
