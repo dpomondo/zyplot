@@ -10,59 +10,60 @@
 # -----------------------------------------------------------------------------
 
 
+# TODO rename this to Zytable since grid is dumb and it SHOULD be a table
 class Zygrid:
     """ Return a list of lines, formatted from a matrix of iterables.
 
-        *iterables:     Multiple same-length lists or tuples. These can be
-                        either rows or columns depending on whether the 'row'
-                        arg in kwargs is True or False.
-        *kwargs:        Formatting args, passed in as a dictionary. Options
-                        include:
-                        True/False options:
-                        'row_flag':
-                                    whether *iterables are to be formatted as
-                                    rows or columns.
-                        'color':    whether each box is formatted with itself,
-                                    or with an optional passed in color
-                                    function.
-                        Options with arguments:
-                        'wrap':     whether or not rows are wrapped after
-                                    a certain length.
-                                    Options:
-                                        int: wrap after that many columns
-                                        'max': wrap after as many columns
-                                        will fit on terminal screen
-                        'column_names':
-                                    optional column names
-                        'column_widths':
-                                    Specify how column widths are calculated.
-                                    Default is 'flexible'.
-                                    Options:
-                                        'equal': uses smallest width that
-                                        fits the largest item for all columns.
-                                        'flexible': each column is as wide as
-                                        needed to fit the largest item.
-                                        integer: each coumn will be the largest
-                                        of either the value of 'equal' or the
-                                        passed-in integer.
-                                        NOTE: this conflicts with 'box_width'
-                                        cos I am dumb.
-                                        'columns': uses the width of column
-                                        names. Defaults to 'flexible' if no
-                                        column names given.
-                        'column_padding':
-                                    Extra width for added to coumns.
-                        'column_names_trim_func':
-                                    function used to trim column names longer
-                                    than box_width
-                        'row_names':    optional row names
-                        'box_width':    otherwise box_width will be set as
-                                    a function of the widest item
-                        'table_padding': padding of blank spaces to the right
-                                    and left of the formatted table
-                        'table_justification':
-                                    'right': table formatted to right margin
-                                    'center': table centered
+    *iterables:     Multiple same-length lists or tuples. These can be
+                    either rows or columns depending on whether the 'row'
+                    arg in kwargs is True or False.
+    *kwargs:        Formatting args, passed in as a dictionary. Options
+                    include:
+                    True/False options:
+                    'row_flag':
+                                whether *iterables are to be formatted as
+                                rows or columns.
+                    'color':    whether each box is formatted with itself,
+                                or with an optional passed in color
+                                function.
+                    Options with arguments:
+                    'wrap':     whether or not rows are wrapped after
+                                a certain length.
+                                Options:
+                                    int: wrap after that many columns
+                                    'max': wrap after as many columns
+                                    will fit on terminal screen
+                    'column_names':
+                                optional column names
+                    'column_widths':
+                                Specify how column widths are calculated.
+                                Default is 'flexible'.
+                                Options:
+                                    'equal': uses smallest width that
+                                    fits the largest item for all columns.
+                                    'flexible': each column is as wide as
+                                    needed to fit the largest item.
+                                    integer: each coumn will be the largest
+                                    of either the value of 'equal' or the
+                                    passed-in integer.
+                                    NOTE: this conflicts with 'box_width'
+                                    cos I am dumb.
+                                    'columns': uses the width of column
+                                    names. Defaults to 'flexible' if no
+                                    column names given.
+                    'column_padding':
+                                Extra width for added to coumns.
+                    'column_names_trim_func':
+                                function used to trim column names longer
+                                than box_width
+                    'row_names':    optional row names
+                    'box_width':    otherwise box_width will be set as
+                                a function of the widest item
+                    'table_padding': padding of blank spaces to the right
+                                and left of the formatted table
+                    'table_justification':
+                                'right': table formatted to right margin
+                                'center': table centered
                                     'left' or None: formatted to left margin
         """
     def __init__(self, iterables, **kwargs):
@@ -72,6 +73,7 @@ class Zygrid:
         self.__format['row_flag'] = kwargs.get('row_flag', True)
         self.__format['column_widths'] = kwargs.get('column_widths', 
                                                     'flexible')
+        self.__format['wrap'] = kwargs.get('wrap', None)
         # both column_names and row_names get routed to functions to set their
         # values
         self.column_names = kwargs.get('column_names', None)
@@ -270,7 +272,7 @@ class Zygrid:
             col_name_trim_func = self.kwargs.get('col_trim_func',
                 lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
             res = ' ' * (self.max_list_size(self.row_names) + 1)
-            for i in range(stop - start):
+            for i in range(start, stop):
                 res += col_name_trim_func(
                     self.column_names[i % len(self.column_names)],
                     self.__col_wid[i % len(self.column_names)])
@@ -290,7 +292,8 @@ class Zygrid:
                     self.row_names[ind % len(self.row_names)],
                     wid=self.max_list_size(self.row_names))
             #  for i in range(10):
-            for i in range(stop - start):
+            #  for i in range(stop - start):
+            for i in range(start, stop):
                 if self.__format['row_flag'] is False:
                     zzz, vvv = i, ind
                 else:
@@ -332,52 +335,46 @@ class Zygrid:
 
     # TODO rename this and associated yabberdy yab to `layout` and
     # `layout_parser` so there is less confusion with the stuff in __format
-    def format_parser(self, begin=None, end=None, jump=None):
-        """ Return a list of formatting functions for use on self.data.
-            """
+    def format_parser(self, begin_offset=0, end_offset=0):
+        """ Return a list of formatting functions for use on self.data.  """
         self.__col_wid = self.get_column_widths()
-        #  formatter = formatter_return_func()
         formatter = self.temp_return_format()
         format_func_dic = self.formatting_funcs()
-
-        # make the list
         formatters_list = []
         # hacktastic defaults for now...
-        # the problem with not wrapping and cutting off columns if row_flag is
-        # False lives HERE somewhere...
-        if begin is None:
-            #  begin = self.start
-            begin = 0
-        if end is None:
-            #  end = self.stop
-            end = self.width()
-        if jump is None:
-            #  jump = self.step
+        if self.__format.get('wrap', False) == 'columns':
+            jump = len(self.column_names)
+        else:
             jump = self.width()
+        begin = 0
+        end = self.width()
         while begin < end:
-            #  for ind in range(len(self.column_names)):
             ind = 0
             for frm in formatter['header']:
                 formatters_list.append((format_func_dic[frm],
-                                        (ind, begin,
-                                        max(begin + jump, end))))
+                                        (ind, begin + begin_offset,
+                                        min(begin + jump - end_offset, end))))
                 ind += 1
             for ind in range(self.length()):
                 for frm in formatter['body']:
                     formatters_list.append((format_func_dic[frm],
-                                           (ind, begin,
-                                            max(begin + jump, end))))
+                                           (ind, begin + begin_offset,
+                                            min(begin + jump - end_offset,
+                                                end))))
             ind = 0
             for frm in formatter['footer']:
                 formatters_list.append((format_func_dic[frm],
-                                        (ind, begin,
-                                        max(begin + jump, end))))
+                                        (ind, begin + begin_offset,
+                                        min(begin + jump - end_offset, end))))
                 ind += 1
             begin += jump
         return formatters_list
 
-    def show(self):
-        funcs = self.format_parser()
+    def show(self, begin=0, end=0):
+    #  def show(self, begin=0, end=0):
+        #  self.verbose = 2
+        funcs = self.format_parser(begin_offset=begin,
+                                   end_offset=end)
         res = []
         for fn in funcs:
             if self.verbose > 1:
