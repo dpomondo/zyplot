@@ -19,16 +19,16 @@ import utils.zyutils as zyutils
 def row_names_generator(row_names=None):
     """ Takes a list or None, returns tuple including a width and a generator.
 
-        If a list of names is passed in as row_names, this returns the width of
-        the formatted names as well as a generator function that yields
-        formatted versions of those names.
+    If a list of names is passed in as row_names, this returns the width of
+    the formatted names as well as a generator function that yields
+    formatted versions of those names.
 
-        If instead `None` is passed in, the width is returned as 0 and the
-        generator function returns an endless sequence of the empty string.
+    If instead `None` is passed in, the width is returned as 0 and the
+    generator function returns an endless sequence of the empty string.
 
-        This was done so that the `row_names is None` test could be done only
-        once, instead of each time through the loop over the iterables list.
-        """
+    This was done so that the `row_names is None` test could be done only
+    once, instead of each time through the loop over the iterables list.
+    """
     if row_names is None:
         def yielder():
             while True:
@@ -164,39 +164,39 @@ def rotate_iterables(iterables):
 def zygrid(*iterables, **kwargs):
     """ Takes lists, returns them formatted as a printable table.
 
-        *iterables:     Multiple same-length lists or tuples. These can be
-                        either rows or columns depending on whether the 'row'
-                        arg in kwargs is True or False.
-        *kwargs:        Formatting args, passed in as a dictionary. Options
-                        include:
-                        True/False options:
-                        'rows':     whether *iterables are to be formatted as
-                                    rows or columns.
-                        'color':    whether each box is formatted with itself,
-                                    or with an optional passed in color
-                                    function.
-                        Options with arguments:
-                        'wrap':     whether or not rows are wrapped after
-                                    a certain length.
-                                    Options:
-                                        int: wrap after that many columns
-                                        'max': wrap after as many columns
-                                        will fit on terminal screen
-                        'column_names':
-                                        optional column names
-                        'column_names_trim_func':
-                                    function used to trim column names longer
-                                    than box_width
-                        'row_names':    optional row names
-                        'box_width':    otherwise box_width will be set as
-                                    a function of the widest item
-                        'side_padding': buffer of blank spaces to the right and
-                                    left of the formatted table
-                        'table_justification':
-                                    'right': table formatted to right margin
-                                    'center': table centered
-                                    'left' or None: formatted to left margin
-        """
+    *iterables:     Multiple same-length lists or tuples. These can be
+                    either rows or columns depending on whether the 'row'
+                    arg in kwargs is True or False.
+    *kwargs:        Formatting args, passed in as a dictionary. Options
+                    include:
+                    True/False options:
+                    'rows':     whether *iterables are to be formatted as
+                                rows or columns.
+                    'color':    whether each box is formatted with itself,
+                                or with an optional passed in color
+                                function.
+                    Options with arguments:
+                    'wrap':     whether or not rows are wrapped after
+                                a certain length.
+                                Options:
+                                    int: wrap after that many columns
+                                    'max': wrap after as many columns
+                                    will fit on terminal screen
+                    'column_names':
+                                    optional column names
+                    'column_names_trim_func':
+                                function used to trim column names longer
+                                than box_width
+                    'row_names':    optional row names
+                    'box_width':    otherwise box_width will be set as
+                                a function of the widest item
+                    'side_padding': buffer of blank spaces to the right and
+                                left of the formatted table
+                    'table_justification':
+                                'right': table formatted to right margin
+                                'center': table centered
+                                'left' or None: formatted to left margin
+    """
 
     # set up the crucial variables
     rows = kwargs.get('rows', True)

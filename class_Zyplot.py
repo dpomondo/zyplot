@@ -12,33 +12,50 @@
 
 class Zyplot:
     """ Take iterables and store them in a form ready to be formatted.
-        """
+    """
     def __init__(self, iterables, **kwargs):
+        self.zyformat = self.return_format_dict()
         self.data = iterables
-        self.__format = self.return_format_dict()
         for key in kwargs:
-            if key in self.__format.keys():
-                self.__format[key] = kwargs[key]
+            self.zupdate(key, kwargs[key])
+
+    # def __setattr__(self, attrname, value):
+    #     if attrname in self.zyformat.keys():
+    #         self.zupdate(attrname, value)
+    #     else:
+    #         object.__setattr__(self, attrname, value)
+
+    def __str__(self):
+        return "<{} instance, {} by {}>".format(
+            self.__class__.__name__,
+            self.width(),
+            self.length())
+
+    def zupdate(self, key, value):
+        if key in self.zyformat.keys():
+            self.zyformat[key] = value
+        #  else:
+            #  raise KeyError
 
     def width(self):
         """ Return number of columns in self.data.
-            """
-        return (len(self.data[0]) if self.__format['row_flag'] is True else
-                len(self.data))
+        """
+        return (len(self.data[0]) if self.zyformat.get('row_flag', True)
+                is True else len(self.data))
 
     def length(self):
         """ Return number of rows in self.data.
-            """
-        return (len(self.data[0]) if self.__format['row_flag'] is False else
-                len(self.data))
+        """
+        return (len(self.data[0]) if self.zyformat.get('row_flag', True)
+                is False else len(self.data))
 
     def depth(self):
         """ Return how many columns each column name refers to.
         """
-        if self.__format.get('column_names', None) is None:
+        if self.zyformat.get('column_names', None) is None:
             return 1
         else:
-            return self.width() / len(self.__format['column_names'])
+            return self.width() / len(self.zyformat['column_names'])
 
     def return_format_dict(self):
         """ Return a dictionary of formatting arguments.
@@ -49,3 +66,30 @@ class Zyplot:
             """
         return {'row_flag':     True
                 }
+
+
+class ZyplotTester(Zyplot):
+    def __init__(self, iterables, **kwargs):
+        Zyplot.__init__(self, iterables, **kwargs)
+
+    def __str__(self):
+        result = "<{}, {} instance, {} by {}".format(
+            __name__,
+            self.__class__.__name__,
+            self.width(), 
+            self.length())
+        for key in sorted(self.zyformat.keys()):
+            result += "\n\t{}={}".format(key, self.zyformat[key])
+        return result
+
+    def return_format_dict(self):
+        return {'a':    'zabba',
+                'b':    'bazza',
+                'c':    'yabba'
+                }
+
+if __name__ == '__main__':
+    zed = ZyplotTester(list(range(10)), a='thunder')
+    print(zed)
+    zed.zupdate('b', 'eagles')
+    print(zed)
