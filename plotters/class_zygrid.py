@@ -161,6 +161,8 @@ class Zygrid:
     def __str__(self):
         return "[Zygrid Formatter Object, <{}> by <{}>]".format(self.width(),
                                                                 self.length())
+    def return_format_dict(self):
+        pass
 
     def zupdate(self, key, value):
         if key in self.zyformat.keys():
@@ -173,6 +175,14 @@ class Zygrid:
     def length(self):
         return (len(self.data[0]) if self.zyformat['row_flag'] is False else
                 len(self.data))
+
+    def depth(self):
+        """ Return how many columns each column name refers to.
+        """
+        if self.zyformat.get('column_names', None) is None:
+            return 1
+        else:
+            return self.width() / len(self.zyformat['column_names'])
 
     def set_column_names(self, cols):
         if cols is None:
@@ -267,8 +277,8 @@ class Zygrid:
         return temp_widths
 
     def temp_return_format(self):
-        return {'header':   ['col_names', 'blank', 'line'],
-                'body':     ['rows'],
+        return {'header':   ['col_names', 'blank'],
+                'body':     ['line', 'rows'],
                 'footer':   ['line']}
 
     def formatting_funcs(self):
@@ -285,17 +295,23 @@ class Zygrid:
                     self.__col_wid[i % len(self.zyformat['column_names'])])
             return res
 
-        def line(_, start, stop):
-            res = ' ' * (self.max_list_size(self.zyformat['row_names']) + 1)
-            for i in range(start, stop - 1):
+        def line(ind, start, stop):
+            def make_line():
+                res = ' ' * (self.max_list_size(
+                    self.zyformat['row_names']) + 1)
+                for i in range(start, stop - 1):
+                    res += '+'
+                    res += '-' * (self.__col_wid[i % len(
+                        self.zyformat['column_names'])] - 1)
                 res += '+'
                 res += '-' * (self.__col_wid[i % len(
-                    self.zyformat['column_names'])] - 1)
-            res += '+'
-            res += '-' * (self.__col_wid[i % len(
-                self.zyformat['column_names'])] - 2)
-            res += '+'
-            return res
+                    self.zyformat['column_names'])] - 2)
+                res += '+'
+                return res
+            temp = None
+            if ind % self.length() == 0:
+                temp = make_line()
+            return temp
 
         def rows(ind, start, stop):
             res = ''
@@ -361,26 +377,28 @@ class Zygrid:
             jump = self.width()
         begin = 0
         end = self.width()
-        while begin < end:
+        for frm in formatter['header']:
             ind = 0
-            for frm in formatter['header']:
-                formatters_list.append((format_func_dic[frm],
-                                        (ind, begin + begin_offset,
-                                        min(begin + jump - end_offset, end))))
-                ind += 1
+            formatters_list.append((format_func_dic[frm],
+                                   (ind, begin + begin_offset,
+                                   min(begin + jump - end_offset,
+                                       end))))
+        while begin < end:
             for ind in range(row_offset, self.length() - last_row_offset):
                 for frm in formatter['body']:
                     formatters_list.append((format_func_dic[frm],
-                                           (ind, begin + begin_offset,
+                                            (ind, begin + begin_offset,
                                             min(begin + jump - end_offset,
                                                 end))))
-            ind = 0
-            for frm in formatter['footer']:
-                formatters_list.append((format_func_dic[frm],
-                                        (ind, begin + begin_offset,
-                                        min(begin + jump - end_offset, end))))
-                ind += 1
             begin += jump
+        for frm in formatter['footer']:
+            ind = self.length()
+            formatters_list.append((format_func_dic[frm],
+                                   #  (ind, begin + begin_offset,
+                                   #  min(begin + jump - end_offset,
+                                       #  end))))
+                                   (ind, begin_offset,
+                                   min(jump - end_offset, end))))
         return formatters_list
 
     #  def show(self, begin=0, end=0, **kwargs):
