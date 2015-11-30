@@ -74,40 +74,28 @@ class Zygrid:
         self.zyformat['column_widths'] = kwargs.get('column_widths', 
                                                     'flexible')
         self.zyformat['wrap'] = kwargs.get('wrap', None)
+        self.zyformat['color'] = kwargs.get('color', False)
         # both column_names and row_names get routed to functions to set their
         # values
-        self.zyformat['column_names'] = kwargs.get('column_names', None)
-        self.zyformat['row_names'] = kwargs.get('row_names', None)
+        self.column_names = kwargs.get('column_names', None)
+        self.row_names = kwargs.get('row_names', None)
         # the following are `magic` for now:
-        self.wrap = False
+        #  self.wrap = False
         # and we store the rest for later
         self.zyformat['padding'] = kwargs.get('padding', 1)
-        self.kwargs = kwargs
+        #  self.kwargs = kwargs
         self.verbose = False
 
     def __getattr__(self, attrname):
-        if attrname == 'minimum_box_width':
-            return self.min_box_width(self.data, max(1,
-                                                     self.zyformat['padding']),
-                                      self.kwargs.get('color', False))
-        elif attrname == 'box_width':
-            # the behavior of this is... problematic
-            return self.return_box_width()
-        elif attrname in self.kwargs.keys():
-            return self.kwargs[attrname]
+        if attrname in self.zyformat.keys():
+            return self.zyformat[attrname]
         elif attrname in self.__dict__.keys():
             return self.__dict__[attrname]
-        else:
-            raise KeyError(attrname)
 
     def __setattr__(self, attrname, value):
-        if attrname in ['width', 'length', 'minimum_box_width']:
-            return
-        elif attrname == 'column_names':
-            self.set_column_names(value)
-        elif attrname == 'row_names':
-            self.set_row_names(value)
-        elif attrname == 'padding':
+        #  if attrname == 'column_names':
+            #  self.set_column_names(value)
+        if attrname == 'padding':
             value = max(1, value)
             object.__setattr__(self, attrname, value)
         elif attrname == 'row_flag':
@@ -115,20 +103,12 @@ class Zygrid:
                 raise ValueError(value)
             if value != self.__dict__.get('row_flag', True):
                 object.__setattr__(self, attrname, value)
-                if len(self.zyformat['column_names']) > 0:
-                    temp = self.zyformat['column_names']
-                    self.set_column_names(self.zyformat['row_names'])
-                    self.set_row_names(temp)
+                if len(self.column_names) > 0:
+                    temp = self.column_names
+                    self.column_names = self.row_names
+                    self.row_names = temp
             else:
                 object.__setattr__(self, attrname, value)
-        elif attrname == 'box_width':
-            value = max(value, self.minimum_box_width)
-            object.__setattr__(self, attrname, value)
-        #  elif attrname == 'column_widths':
-            #  #  self.__col_wid = self.get_column_widths()
-            #  object.__setattr__(self, attrname, value)
-            #  temp = self.get_column_widths()
-            #  object.__setattr__(self, '__col_wid', temp)
         else:
             object.__setattr__(self, attrname, value)
 
@@ -159,8 +139,9 @@ class Zygrid:
             return temp
 
     def __str__(self):
-        return "[Zygrid Formatter Object, <{}> by <{}>]".format(self.width(),
-                                                                self.length())
+        return "[Zygrid Formatter Object, <{}> by <{}>]".format(self.width,
+                                                                self.length)
+
     def return_format_dict(self):
         pass
 
@@ -168,39 +149,65 @@ class Zygrid:
         if key in self.zyformat.keys():
             self.zyformat[key] = value
 
+    @property
     def width(self):
         return (len(self.data[0]) if self.zyformat['row_flag'] is True else
                 len(self.data))
 
+    @property
     def length(self):
         return (len(self.data[0]) if self.zyformat['row_flag'] is False else
                 len(self.data))
 
+    @property
     def depth(self):
         """ Return how many columns each column name refers to.
         """
         if self.zyformat.get('column_names', None) is None:
             return 1
         else:
-            return self.width() / len(self.zyformat['column_names'])
+            return int(self.width / len(self.column_names))
+    
+    @property
+    def minimum_box_width(self):
+        return self.min_box_width(self.data, self.padding,
+                                  self.zyformat.get('color', False))
 
-    def set_column_names(self, cols):
-        if cols is None:
-            object.__setattr__(self, 'column_names', [])
-        else:
-            if self.width() % len(cols) != 0:
-                raise ValueError("Number of columns should be a multiple" +
-                                 " of number of column names")
-            object.__setattr__(self, 'column_names', cols[:])
+    @property
+    def box_width(self):
+        return self.zyformat.get('box_width', self.minimum_box_width)
 
-    def set_row_names(self, rws):
+    @box_width.setter
+    def box_width(self, value):
+        self.zyformat['box_width'] = max(self.minimum_box_width, value)
+
+    @property
+    def row_names(self):
+        return self._rnams
+
+    @row_names.setter
+    def row_names(self, rws):
         if rws is None:
-            object.__setattr__(self, 'row_names', [])
+            self._rnams = []
         else:
-            if  self.length() % len(rws) != 0:
+            if self.length % len(rws) != 0:
                 raise ValueError("Number of rows should be a multiple" +
                                  " of number of row names")
-            object.__setattr__(self, 'row_names', rws[:])
+            self._rnams = rws[:]
+
+    @property
+    def column_names(self):
+        return self._cnams
+
+    @column_names.setter
+    def column_names(self, cols):
+        if cols is None:
+            self._cnams = []
+        else:
+            if self.width % len(cols) != 0:
+                raise ValueError("Number of columns should be a multiple" +
+                                 " of number of column names")
+            self._cnams = cols[:]
 
     def return_box_format_func(self):
         if self.kwargs.get('color', None) is not None:
@@ -234,12 +241,6 @@ class Zygrid:
                                          list(i[1] for i in it)))
         return temp_box_width + padding
 
-    def return_box_width(self):
-        #  return max(self.kwargs.get('box_width', 1), self.minimum_box_width)
-        return self.kwargs.get('box_width',
-                               self.__dict__.get('box_width',
-                                                 self.minimum_box_width))
-
     def get_column_widths(self):
         """ Create a list of ints for use in formatting columns.    """
         if ('column_widths' not in self.zyformat.keys()):
@@ -248,29 +249,29 @@ class Zygrid:
         temp_widths = []
         padding = max(1, self.zyformat['padding'])
         if self.zyformat['column_widths'] == 'equal':
-            for i in range(self.width()):
-                temp_widths.append(self.minimum_box_width)
+            for i in range(self.width):
+                temp_widths.append(self.box_width)
         elif isinstance(self.zyformat['column_widths'], int):
             # here we need to integrate self.box_width properly...
-            temp = max(self.minimum_box_width, self.zyformat['column_widths'])
-            for i in range(self.width()):
+            temp = max(self.box_width, self.zyformat['column_widths'])
+            for i in range(self.width):
                 temp_widths.append(temp)
         elif self.zyformat['column_widths'] == 'columns':
-            if self.zyformat['column_names'] is None:
+            if self.column_names is None:
                 # this is a terrible solution and must be fixed...
                 # A proper solution shouln't change a passed-in attribute
                 self.zyformat['column_widths'] = 'flexible'
             else:
-                for nam in self.zyformat['column_names']:
+                for nam in self.column_names:
                     temp_widths.append(len(nam) + padding)
         elif self.zyformat['column_widths'] == 'flexible':
             if self.zyformat['row_flag'] is False:
-                for i in range(self.width()):
+                for i in range(self.width):
                     temp_widths.append(
                         max(len(str(zit)) for zit in self.data[i]) +
                         padding)
             else:
-                for i in range(self.width()):
+                for i in range(self.width):
                     temp_widths.append(
                         max(len(str(zit[i])) for zit in self.data) +
                         padding)
@@ -283,42 +284,43 @@ class Zygrid:
 
     def formatting_funcs(self):
         def col_names(_, start, stop):
-            if len(self.zyformat['column_names']) == 0:
+            def col_name_trim_func(x, y):
+                return '{:^{wid}}'.format(x[0:y], wid=y)
+            if len(self.column_names) == 0:
                 return None
-            col_name_trim_func = self.kwargs.get('col_trim_func',
-                lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
-            res = ' ' * (self.max_list_size(self.zyformat['row_names']) + 1)
+            #  col_name_trim_func = self.zyformat.get('col_trim_func',
+                #  lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
+            res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
                 res += col_name_trim_func(
-                    self.zyformat['column_names'][i % len(
-                        self.zyformat['column_names'])],
-                    self.__col_wid[i % len(self.zyformat['column_names'])])
+                    self.column_names[i % len(self.column_names)],
+                    self.__col_wid[i % len(self.column_names)])
             return res
 
         def line(ind, start, stop):
             def make_line():
                 res = ' ' * (self.max_list_size(
-                    self.zyformat['row_names']) + 1)
+                    self.row_names) + 1)
                 for i in range(start, stop - 1):
                     res += '+'
                     res += '-' * (self.__col_wid[i % len(
-                        self.zyformat['column_names'])] - 1)
+                        self.column_names)] - 1)
                 res += '+'
                 res += '-' * (self.__col_wid[i % len(
-                    self.zyformat['column_names'])] - 2)
+                    self.column_names)] - 2)
                 res += '+'
                 return res
             temp = None
-            if ind % self.length() == 0:
+            if ind % self.length == 0:
                 temp = make_line()
             return temp
 
         def rows(ind, start, stop):
             res = ''
-            if len(self.zyformat['row_names']) > 0:
+            if len(self.row_names) > 0:
                 res += '{:<{wid}} '.format(
-                    self.zyformat['row_names'][ind % len(self.zyformat['row_names'])],
-                    wid=self.max_list_size(self.zyformat['row_names']))
+                    self.row_names[ind % len(self.row_names)],
+                    wid=self.max_list_size(self.row_names))
             #  for i in range(10):
             #  for i in range(stop - start):
             for i in range(start, stop):
@@ -331,9 +333,9 @@ class Zygrid:
             return res
 
         def blank(_, start, stop):
-            res = ' ' * self.max_list_size(self.zyformat['row_names'])
+            res = ' ' * self.max_list_size(self.row_names)
             for i in range(stop - start):
-                res += ' ' * self.__col_wid[i % len(self.zyformat['column_names'])]
+                res += ' ' * self.__col_wid[i % len(self.column_names)]
             return res
 
         _dic = {'col_names':    col_names,
@@ -349,9 +351,9 @@ class Zygrid:
         #  set it each time columns_widths gets set...
         self.__col_wid = self.get_column_widths()
         res = []
-        for i in range(self.length()):
+        for i in range(self.length):
             res.append('')
-            for j in range(self.width()):
+            for j in range(self.width):
                 if self.zyformat['row_flag'] is True:
                     z, y = i, j
                 else:
@@ -372,11 +374,11 @@ class Zygrid:
         formatters_list = []
         # hacktastic defaults for now...
         if self.zyformat.get('wrap', False) == 'columns':
-            jump = len(self.zyformat['column_names'])
+            jump = len(self.column_names)
         else:
-            jump = self.width()
+            jump = self.width
         begin = 0
-        end = self.width()
+        end = self.width
         for frm in formatter['header']:
             ind = 0
             formatters_list.append((format_func_dic[frm],
@@ -384,7 +386,7 @@ class Zygrid:
                                    min(begin + jump - end_offset,
                                        end))))
         while begin < end:
-            for ind in range(row_offset, self.length() - last_row_offset):
+            for ind in range(row_offset, self.length - last_row_offset):
                 for frm in formatter['body']:
                     formatters_list.append((format_func_dic[frm],
                                             (ind, begin + begin_offset,
@@ -392,11 +394,8 @@ class Zygrid:
                                                 end))))
             begin += jump
         for frm in formatter['footer']:
-            ind = self.length()
+            ind = self.length
             formatters_list.append((format_func_dic[frm],
-                                   #  (ind, begin + begin_offset,
-                                   #  min(begin + jump - end_offset,
-                                       #  end))))
                                    (ind, begin_offset,
                                    min(jump - end_offset, end))))
         return formatters_list
