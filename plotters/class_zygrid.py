@@ -171,14 +171,12 @@ class Zygrid:
     @property
     def minimum_box_width(self):
         if '_minboxwid' not in self.__dict__.keys():
-            self._minboxwid = self.min_box_width(
-                self.data, self.padding, self.zyformat.get('color', False))
+            self._minboxwid = self.min_box_width(self.data, self.padding)
         return self._minboxwid
 
     @minimum_box_width.setter
-    def minimum_box_width(self):
-        self._minboxwid = self.min_box_width(self.data, self.padding, 
-                                             self.zyformat.get('color', False))
+    def minimum_box_width(self, *args):
+        self._minboxwid = self.min_box_width(self.data, self.padding)
 
     @property
     def box_width(self):
@@ -217,10 +215,10 @@ class Zygrid:
             self._cnams = cols[:]
 
     def return_box_format_func(self):
-        if self.kwargs.get('color', None) is not None:
-            return lambda x: "{}{:^{wid}}{}".format(*x, wid=self.box_width)
+        if self.zyformat.get('color', False) is not False:
+            return lambda x, y: "{}{:^{wid}}{}".format(*x, wid=y)
         else:
-            return lambda x: "{:^{wid}}".format(str(x), wid=self.box_width)
+            return lambda x, y: "{:^{wid}}".format(str(x), wid=y)
 
     def min_list_size(self, iters):
         if len(iters) > 0:
@@ -234,9 +232,9 @@ class Zygrid:
         else:
             return 0
 
-    def min_box_width(self, iters, padding=0, color=False):
+    def min_box_width(self, iters, padding=0):
         temp_box_width = 0
-        if color is False:
+        if self.zyformat.get('color', False) is False:
             for it in iters:
                 temp_box_width = max(temp_box_width, self.max_list_size(it))
         else:
@@ -320,15 +318,26 @@ class Zygrid:
             return temp
 
         def new_rows(ind, start, stop):
-            box_trim_func = self.zyformat.get('box_trim_func', lambda x: x)
+            box_trim_func = self.zyformat.get('box_trim_func',
+                                              lambda x: str(x))
+            #  box_format_func = self.return_box_format_func()
             # first we trim & cut the box contents
             items = []
+            color_mask = []
             for i in range(start, stop):
                 if self.zyformat['row_flag'] is False:
                     zzz, vvv = i, ind
                 else:
                     zzz, vvv = ind, i
-                items.append(box_trim_func(self.data[zzz][vvv]))
+                if self.zyformat.get('color', False) is False:
+                    itm = self.data[zzz][vvv]
+                    color = ''
+                else:
+                    itm = self.data[zzz][vvv][1]
+                    color = self.data[zzz][vvv][0]
+                #  items.append(box_trim_func(self.data[zzz][vvv]))
+                items.append(box_trim_func(itm))
+                color_mask.append(color)
             if self.verbose:
                 print("items to be formatted\n\t", items)
             lines = 1
@@ -358,14 +367,21 @@ class Zygrid:
                     zitm = ''
                     if lines == 1:
                         zitm = items[it]
+                    # the following line is a bug waiting to happen (if the
+                    # `items` list consists of ints or floats, for example)
+                    # Possible fix: require box_trim_func to return either
+                    # a list of strings or a string
                     elif isinstance(items[it], str) and lin == 0:
                         zitm = items[it]
                     elif isinstance(items[it], list) and lin < len(items[it]):
                         zitm = items[it][lin]
                     elif isinstance(items[it], tuple) and lin < len(items[it]):
                         zitm = items[it][lin]
-                    res[lin] += '{:^{wid}}'.format(
+                    #  res[lin] += '{:^{wid}}'.format(
+                    res[lin] += "{}{:^{wid}}{}".format(
+                        color_mask[it],
                         zitm,
+                        '\033[0m',
                         wid=self.__col_wid[it % len(self.column_names)])
                     if self.verbose:
                         print("length of res:\n\t", len(res[lin]), res[lin])
