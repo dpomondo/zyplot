@@ -71,7 +71,7 @@ class Zygrid:
         self.zyformat = {}
         # mebbe 'rows' as kwarg for 'row_flag' is a bad idea...
         self.zyformat['row_flag'] = kwargs.get('row_flag', True)
-        self.zyformat['column_widths'] = kwargs.get('column_widths', 
+        self.zyformat['column_widths'] = kwargs.get('column_widths',
                                                     'flexible')
         self.zyformat['wrap'] = kwargs.get('wrap', None)
         self.zyformat['color'] = kwargs.get('color', False)
@@ -167,11 +167,18 @@ class Zygrid:
             return 1
         else:
             return int(self.width / len(self.column_names))
-    
+
     @property
     def minimum_box_width(self):
-        return self.min_box_width(self.data, self.padding,
-                                  self.zyformat.get('color', False))
+        if '_minboxwid' not in self.__dict__.keys():
+            self._minboxwid = self.min_box_width(
+                self.data, self.padding, self.zyformat.get('color', False))
+        return self._minboxwid
+
+    @minimum_box_width.setter
+    def minimum_box_width(self):
+        self._minboxwid = self.min_box_width(self.data, self.padding, 
+                                             self.zyformat.get('color', False))
 
     @property
     def box_width(self):
@@ -263,7 +270,8 @@ class Zygrid:
                 self.zyformat['column_widths'] = 'flexible'
             else:
                 for nam in self.column_names:
-                    temp_widths.append(len(nam) + padding)
+                    temp_widths.append(max(self.minimum_box_width,
+                                           len(nam) + padding))
         elif self.zyformat['column_widths'] == 'flexible':
             if self.zyformat['row_flag'] is False:
                 for i in range(self.width):
@@ -284,12 +292,8 @@ class Zygrid:
 
     def formatting_funcs(self):
         def col_names(_, start, stop):
-            def col_name_trim_func(x, y):
-                return '{:^{wid}}'.format(x[0:y], wid=y)
-            if len(self.column_names) == 0:
-                return None
-            #  col_name_trim_func = self.zyformat.get('col_trim_func',
-                #  lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
+            col_name_trim_func = self.zyformat.get('col_trim_func',
+                lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
             res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
                 res += col_name_trim_func(
@@ -315,32 +319,86 @@ class Zygrid:
                 temp = make_line()
             return temp
 
+        def new_rows(ind, start, stop):
+            box_trim_func = self.zyformat.get('box_trim_func', lambda x: x)
+            # first we trim & cut the box contents
+            items = []
+            for i in range(start, stop):
+                if self.zyformat['row_flag'] is False:
+                    zzz, vvv = i, ind
+                else:
+                    zzz, vvv = ind, i
+                items.append(box_trim_func(self.data[zzz][vvv]))
+            if self.verbose:
+                print("items to be formatted\n\t", items)
+            lines = 1
+            for it in items:
+                if isinstance(it, list) or isinstance(it, tuple):
+                    if len(it) > lines:
+                        lines = len(it)
+            if self.verbose:
+                print("lines: ", lines)
+            # now we construnct the strings
+            res = []
+            for lin in range(lines):
+                res.append('')
+            if self.verbose:
+                print('res so far:\n\t', res)
+            if len(self.row_names) > 0:
+                rnam_wid = self.max_list_size(self.row_names)
+                for lin in range(lines):
+                    res[lin] += '{:<{wid}} '.format(
+                        self.row_names[ind % len(self.row_names)] if lin ==
+                        0 else '',
+                        wid=rnam_wid)
+            if self.verbose:
+                print('res so far:\n\t', res)
+            for lin in range(lines):
+                for it in range(len(items)):
+                    zitm = ''
+                    if lines == 1:
+                        zitm = items[it]
+                    elif isinstance(items[it], str) and lin == 0:
+                        zitm = items[it]
+                    elif isinstance(items[it], list) and lin < len(items[it]):
+                        zitm = items[it][lin]
+                    elif isinstance(items[it], tuple) and lin < len(items[it]):
+                        zitm = items[it][lin]
+                    res[lin] += '{:^{wid}}'.format(
+                        zitm,
+                        wid=self.__col_wid[it % len(self.column_names)])
+                    if self.verbose:
+                        print("length of res:\n\t", len(res[lin]), res[lin])
+            return res
+
         def rows(ind, start, stop):
             res = ''
             if len(self.row_names) > 0:
                 res += '{:<{wid}} '.format(
                     self.row_names[ind % len(self.row_names)],
                     wid=self.max_list_size(self.row_names))
-            #  for i in range(10):
-            #  for i in range(stop - start):
             for i in range(start, stop):
                 if self.zyformat['row_flag'] is False:
                     zzz, vvv = i, ind
                 else:
                     zzz, vvv = ind, i
-                res += '{:^{wid}}'.format(self.data[zzz][vvv],
-                                          wid=self.__col_wid[i])
-            return res
+                res += '{:^{wid}}'.format(
+                    self.data[zzz][vvv],
+                    wid=self.__col_wid[i % len(self.column_names)])
+            thunder = []
+            thunder.append(res)
+            return thunder
 
         def blank(_, start, stop):
             res = ' ' * self.max_list_size(self.row_names)
-            for i in range(stop - start):
+            for i in range(start, stop):
                 res += ' ' * self.__col_wid[i % len(self.column_names)]
             return res
 
         _dic = {'col_names':    col_names,
                 'line':         line,
-                'rows':         rows,
+                #  'rows':         rows,
+                'rows':         new_rows,
                 'blank':        blank}
         return _dic
 
@@ -400,7 +458,6 @@ class Zygrid:
                                    min(jump - end_offset, end))))
         return formatters_list
 
-    #  def show(self, begin=0, end=0, **kwargs):
     def show(self, *args, **kwargs):
         if len(args) > 4:
             raise KeyError
@@ -408,6 +465,8 @@ class Zygrid:
         end = args[1] if len(args) > 1 else 0
         row_offset = args[2] if len(args) > 2 else 0
         last_row_offset = args[3] if len(args) > 3 else 0
+        # TODO: find a way to call method while only temporarily changing
+        # settings
         for key in kwargs:
             self.zupdate(key, kwargs[key])
         funcs = self.format_parser(begin_offset=begin,
@@ -420,6 +479,9 @@ class Zygrid:
                 print("function: {}\t args: {}, {}, {}".format(fn[0], *fn[1]))
             temp = fn[0](*fn[1])
             if temp is not None:
-                res.append(temp)
+                if isinstance(temp, str):
+                    res.append(temp)
+                if isinstance(temp, list):
+                    res.extend(temp)
         for lin in res:
                 print(lin)

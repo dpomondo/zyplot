@@ -19,12 +19,6 @@ class Zyplot:
         for key in kwargs:
             self.zupdate(key, kwargs[key])
 
-    # def __setattr__(self, attrname, value):
-    #     if attrname in self.zyformat.keys():
-    #         self.zupdate(attrname, value)
-    #     else:
-    #         object.__setattr__(self, attrname, value)
-
     def __str__(self):
         return "<{} instance, {} by {}>".format(
             self.__class__.__name__,
@@ -79,7 +73,7 @@ class ZyplotTester(Zyplot):
         result = "<{}, {} instance, {} by {}".format(
             __name__,
             self.__class__.__name__,
-            self.width, 
+            self.width,
             self.length)
         for key in sorted(self.zyformat.keys()):
             result += "\n\t{}={}".format(key, self.zyformat[key])
