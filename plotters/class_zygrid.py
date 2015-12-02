@@ -82,7 +82,7 @@ class Zygrid:
         # the following are `magic` for now:
         #  self.wrap = False
         # and we store the rest for later
-        self.zyformat['padding'] = kwargs.get('padding', 1)
+        self.padding = kwargs.get('padding', 1)
         #  self.kwargs = kwargs
         self.verbose = False
 
@@ -95,10 +95,7 @@ class Zygrid:
     def __setattr__(self, attrname, value):
         #  if attrname == 'column_names':
             #  self.set_column_names(value)
-        if attrname == 'padding':
-            value = max(1, value)
-            object.__setattr__(self, attrname, value)
-        elif attrname == 'row_flag':
+        if attrname == 'row_flag':
             if value not in (True, False):
                 raise ValueError(value)
             if value != self.__dict__.get('row_flag', True):
@@ -171,12 +168,12 @@ class Zygrid:
     @property
     def minimum_box_width(self):
         if '_minboxwid' not in self.__dict__.keys():
-            self._minboxwid = self.min_box_width(self.data, self.padding)
+            self._minboxwid = self.min_box_width(self.data, 1)
         return self._minboxwid
 
     @minimum_box_width.setter
     def minimum_box_width(self, *args):
-        self._minboxwid = self.min_box_width(self.data, self.padding)
+        self._minboxwid = self.min_box_width(self.data, 1)
 
     @property
     def box_width(self):
@@ -184,7 +181,21 @@ class Zygrid:
 
     @box_width.setter
     def box_width(self, value):
-        self.zyformat['box_width'] = max(self.minimum_box_width, value)
+        value = max(self.minimum_box_width, value)
+        self.zyformat['box_width'] = value
+        self.zyformat['padding'] = value - self.minimum_box_width + 1
+
+    @property
+    def padding(self):
+        if 'padding' not in self.zyformat.keys():
+            self.zyformat['padding'] = 1
+        return self.zyformat['padding']
+
+    @padding.setter
+    def padding(self, value):
+        value = max(1, value)
+        self.zyformat['padding'] = value
+        self.zyformat['box_width'] = self.minimum_box_width + value - 1
 
     @property
     def row_names(self):
@@ -338,21 +349,15 @@ class Zygrid:
                 #  items.append(box_trim_func(self.data[zzz][vvv]))
                 items.append(box_trim_func(itm))
                 color_mask.append(color)
-            if self.verbose:
-                print("items to be formatted\n\t", items)
             lines = 1
             for it in items:
                 if isinstance(it, list) or isinstance(it, tuple):
                     if len(it) > lines:
                         lines = len(it)
-            if self.verbose:
-                print("lines: ", lines)
             # now we construnct the strings
             res = []
             for lin in range(lines):
                 res.append('')
-            if self.verbose:
-                print('res so far:\n\t', res)
             if len(self.row_names) > 0:
                 rnam_wid = self.max_list_size(self.row_names)
                 for lin in range(lines):
@@ -360,8 +365,6 @@ class Zygrid:
                         self.row_names[ind % len(self.row_names)] if lin ==
                         0 else '',
                         wid=rnam_wid)
-            if self.verbose:
-                print('res so far:\n\t', res)
             for lin in range(lines):
                 for it in range(len(items)):
                     zitm = ''
@@ -383,8 +386,6 @@ class Zygrid:
                         zitm,
                         '\033[0m',
                         wid=self.__col_wid[it % len(self.column_names)])
-                    if self.verbose:
-                        print("length of res:\n\t", len(res[lin]), res[lin])
             return res
 
         def rows(ind, start, stop):
