@@ -51,7 +51,7 @@ class Zygrid:
                                     'columns': uses the width of column
                                     names. Defaults to 'flexible' if no
                                     column names given.
-                    'column_padding':
+                    'padding':
                                 Extra width for added to coumns.
                     'column_names_trim_func':
                                 function used to trim column names longer
@@ -93,8 +93,6 @@ class Zygrid:
             return self.__dict__[attrname]
 
     def __setattr__(self, attrname, value):
-        #  if attrname == 'column_names':
-            #  self.set_column_names(value)
         if attrname == 'row_flag':
             if value not in (True, False):
                 raise ValueError(value)
@@ -106,6 +104,8 @@ class Zygrid:
                     self.row_names = temp
             else:
                 object.__setattr__(self, attrname, value)
+        #  elif attrname in self.zyformat.keys():
+            #  self.zupdate(attrname, value)
         else:
             object.__setattr__(self, attrname, value)
 
@@ -284,14 +284,20 @@ class Zygrid:
         elif self.zyformat['column_widths'] == 'flexible':
             if self.zyformat['row_flag'] is False:
                 for i in range(self.width):
-                    temp_widths.append(
-                        max(len(str(zit)) for zit in self.data[i]) +
-                        padding)
+                    slc = slice(i, i + 1)
+                    if self.zyformat.get('color', False) is False:
+                        temp = max(len(str(zit)) for zit in self.data[slc])
+                    else:
+                        temp = max(len(str(zit[1])) for zit in self.data[slc])
+                    temp_widths.append(temp + padding)
             else:
                 for i in range(self.width):
-                    temp_widths.append(
-                        max(len(str(zit[i])) for zit in self.data) +
-                        padding)
+                    slc = slice(i, i + 1)
+                    if self.zyformat.get('color', False) is False:
+                        temp = max(len(str(zit[slc][0])) for zit in self.data)
+                    else:
+                        temp = max(len(str(zit[slc][0][1])) for zit in self.data)
+                    temp_widths.append(temp + padding)
         return temp_widths
 
     def temp_return_format(self):
@@ -301,6 +307,10 @@ class Zygrid:
 
     def formatting_funcs(self):
         def col_names(_, start, stop):
+            print("hitting col func...")
+            if self.column_names == []:
+                return
+            print("survivied the empty name test...")
             col_name_trim_func = self.zyformat.get('col_trim_func',
                 lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
             res = ' ' * (self.max_list_size(self.row_names) + 1)
@@ -312,21 +322,27 @@ class Zygrid:
 
         def line(ind, start, stop):
             def make_line():
-                res = ' ' * (self.max_list_size(
-                    self.row_names) + 1)
+                # make sure we don't hang if there are no column names
+                if len(self.column_names) == 0:
+                    temp = self.width
+                else:
+                    temp = len(self.column_names)
+                if self.row_names != []:
+                    res = ' ' * (self.max_list_size(
+                        self.row_names) + 1)
+                else:
+                    res = ''
                 for i in range(start, stop - 1):
                     res += '+'
-                    res += '-' * (self.__col_wid[i % len(
-                        self.column_names)] - 1)
+                    res += '-' * (self.__col_wid[i % temp] - 1)
                 res += '+'
-                res += '-' * (self.__col_wid[i % len(
-                    self.column_names)] - 2)
+                res += '-' * (self.__col_wid[i % temp] - 2)
                 res += '+'
                 return res
-            temp = None
+            lin = None
             if ind % self.length == 0:
-                temp = make_line()
-            return temp
+                lin = make_line()
+            return lin
 
         def new_rows(ind, start, stop):
             box_trim_func = self.zyformat.get('box_trim_func',
@@ -365,6 +381,10 @@ class Zygrid:
                         self.row_names[ind % len(self.row_names)] if lin ==
                         0 else '',
                         wid=rnam_wid)
+            if len(self.column_names) == 0 or self.zyformat['wrap'] is False:
+                zemp = self.width
+            else:
+                zemp = len(self.column_names)
             for lin in range(lines):
                 for it in range(len(items)):
                     zitm = ''
@@ -385,7 +405,7 @@ class Zygrid:
                         color_mask[it],
                         zitm,
                         '\033[0m',
-                        wid=self.__col_wid[it % len(self.column_names)])
+                        wid=self.__col_wid[it % zemp])
             return res
 
         def rows(ind, start, stop):
@@ -409,7 +429,11 @@ class Zygrid:
         def blank(_, start, stop):
             res = ' ' * self.max_list_size(self.row_names)
             for i in range(start, stop):
-                res += ' ' * self.__col_wid[i % len(self.column_names)]
+                if len(self.column_names) == 0:
+                    temp = self.width
+                else:
+                    temp = len(self.column_names)
+                res += ' ' * self.__col_wid[i % temp]
             return res
 
         _dic = {'col_names':    col_names,
