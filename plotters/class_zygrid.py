@@ -282,21 +282,35 @@ class Zygrid:
                     temp_widths.append(max(self.minimum_box_width,
                                            len(nam) + padding))
         elif self.zyformat['column_widths'] == 'flexible':
+            if self.zyformat.get('wrap', False) is False:
+                rnge = self.width
+            elif self.zyformat.get('wrap', False) == 'columns':
+                rnge = len(self.column_names)
+            if self.zyformat.get('color', False) is False:
+                temp_func = lambda x: len(str(x))
+            else:
+                temp_func = lambda x: len(str(x[1]))
             if self.zyformat['row_flag'] is False:
-                for i in range(self.width):
-                    slc = slice(i, i + 1)
-                    if self.zyformat.get('color', False) is False:
-                        temp = max(len(str(zit)) for zit in self.data[slc])
-                    else:
-                        temp = max(len(str(zit[1])) for zit in self.data[slc])
+                for i in range(rnge):
+                    if self.zyformat.get('wrap', False) is False:
+                        target = range(i, i+1)
+                    elif self.zyformat.get('wrap', False) == 'columns':
+                        target = range(i, self.width, len(self.column_names))
+                    temp_list = []
+                    for zind in target:
+                        temp_list += [temp_func(z) for z in self.data[zind]]
+                    temp = max(temp_list)
                     temp_widths.append(temp + padding)
             else:
-                for i in range(self.width):
-                    slc = slice(i, i + 1)
-                    if self.zyformat.get('color', False) is False:
-                        temp = max(len(str(zit[slc][0])) for zit in self.data)
-                    else:
-                        temp = max(len(str(zit[slc][0][1])) for zit in self.data)
+                for i in range(rnge):
+                    if self.zyformat.get('wrap', False) is False:
+                        target = range(i, i+1)
+                    elif self.zyformat.get('wrap', False) == 'columns':
+                        target = range(i, self.width, len(self.column_names))
+                    temp_list = []
+                    for zind in target:
+                        temp_list += [temp_func(z[zind]) for z in self.data]
+                    temp = max(temp_list)
                     temp_widths.append(temp + padding)
         return temp_widths
 
@@ -307,17 +321,26 @@ class Zygrid:
 
     def formatting_funcs(self):
         def col_names(_, start, stop):
-            print("hitting col func...")
+            if self.verbose:
+                print("hitting col func...")
             if self.column_names == []:
                 return
-            print("survivied the empty name test...")
+            if self.zyformat.get('wrap', False) is False:
+                zemp = self.width
+            elif self.zyformat.get('wrap', False) == 'columns':
+                zemp = len(self.column_names)
+            else:
+                raise ValueError("{} not a valid value for 'wrap'".format(
+                    self.zyformat.get('wrap', False)))
+            if self.verbose:
+                print("survivied the empty name test...")
             col_name_trim_func = self.zyformat.get('col_trim_func',
                 lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
             res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
                 res += col_name_trim_func(
                     self.column_names[i % len(self.column_names)],
-                    self.__col_wid[i % len(self.column_names)])
+                    self.__col_wid[i % zemp])
             return res
 
         def line(ind, start, stop):
@@ -325,8 +348,10 @@ class Zygrid:
                 # make sure we don't hang if there are no column names
                 if len(self.column_names) == 0:
                     temp = self.width
-                else:
+                elif self.zyformat.get('wrap', False) == 'columns':
                     temp = len(self.column_names)
+                else:
+                    temp = self.width
                 if self.row_names != []:
                     res = ' ' * (self.max_list_size(
                         self.row_names) + 1)
