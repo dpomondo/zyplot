@@ -73,7 +73,7 @@ class Zygrid:
         self.zyformat['row_flag'] = kwargs.get('row_flag', True)
         self.zyformat['column_widths'] = kwargs.get('column_widths',
                                                     'flexible')
-        self.zyformat['wrap'] = kwargs.get('wrap', None)
+        self.zyformat['wrap'] = kwargs.get('wrap', False)
         self.zyformat['color'] = kwargs.get('color', False)
         # both column_names and row_names get routed to functions to set their
         # values
@@ -264,6 +264,9 @@ class Zygrid:
                                                              'flexible')
         temp_widths = []
         padding = max(1, self.zyformat['padding'])
+        if self.verbose:
+            print("calculating column widths, setting of {}".format(
+                self.zyformat['column_widths']))
         if self.zyformat['column_widths'] == 'equal':
             for i in range(self.width):
                 temp_widths.append(self.box_width)
@@ -282,36 +285,36 @@ class Zygrid:
                     temp_widths.append(max(self.minimum_box_width,
                                            len(nam) + padding))
         elif self.zyformat['column_widths'] == 'flexible':
-            if self.zyformat.get('wrap', False) is False:
-                rnge = self.width
-            elif self.zyformat.get('wrap', False) == 'columns':
+            # First, how many results do we need(`rnge`) and whether we need to
+            # get single columns or multiples 
+            if self.zyformat.get('wrap', False) == 'columns':
                 rnge = len(self.column_names)
+                target = lambda x: range(x, self.width, len(self.column_names))
+            elif self.zyformat.get('wrap', False) is False:
+                rnge = self.width
+                target = lambda x: range(x, x+1)
+            # if 'color' is true, then results will be a 3-tuple, so we need to
+            # only take the second item
             if self.zyformat.get('color', False) is False:
                 temp_func = lambda x: len(str(x))
             else:
                 temp_func = lambda x: len(str(x[1]))
+            # we need to slice the data differently depending on whether its
+            # rotated or not.
+            generator_func = lambda fn, dt: [temp_func(fn(z)) for z in
+                                             dt(self.data)]
             if self.zyformat['row_flag'] is False:
-                for i in range(rnge):
-                    if self.zyformat.get('wrap', False) is False:
-                        target = range(i, i+1)
-                    elif self.zyformat.get('wrap', False) == 'columns':
-                        target = range(i, self.width, len(self.column_names))
-                    temp_list = []
-                    for zind in target:
-                        temp_list += [temp_func(z) for z in self.data[zind]]
-                    temp = max(temp_list)
-                    temp_widths.append(temp + padding)
+                gen_tuple = (lambda x: x, lambda z: z[zind])
             else:
-                for i in range(rnge):
-                    if self.zyformat.get('wrap', False) is False:
-                        target = range(i, i+1)
-                    elif self.zyformat.get('wrap', False) == 'columns':
-                        target = range(i, self.width, len(self.column_names))
-                    temp_list = []
-                    for zind in target:
-                        temp_list += [temp_func(z[zind]) for z in self.data]
-                    temp = max(temp_list)
-                    temp_widths.append(temp + padding)
+                gen_tuple = (lambda x: x[zind], lambda z: z)
+            # now we pull the trigger and build the list!
+            for i in range(rnge):
+                temp_list = []
+                for zind in target(i):
+                    temp_list += generator_func(*gen_tuple)
+                    #  temp_list += [temp_func(z) for z in self.data[zind]]
+                temp = max(temp_list)
+                temp_widths.append(temp + padding)
         return temp_widths
 
     def temp_return_format(self):
@@ -432,24 +435,6 @@ class Zygrid:
                         '\033[0m',
                         wid=self.__col_wid[it % zemp])
             return res
-
-        def rows(ind, start, stop):
-            res = ''
-            if len(self.row_names) > 0:
-                res += '{:<{wid}} '.format(
-                    self.row_names[ind % len(self.row_names)],
-                    wid=self.max_list_size(self.row_names))
-            for i in range(start, stop):
-                if self.zyformat['row_flag'] is False:
-                    zzz, vvv = i, ind
-                else:
-                    zzz, vvv = ind, i
-                res += '{:^{wid}}'.format(
-                    self.data[zzz][vvv],
-                    wid=self.__col_wid[i % len(self.column_names)])
-            thunder = []
-            thunder.append(res)
-            return thunder
 
         def blank(_, start, stop):
             res = ' ' * self.max_list_size(self.row_names)
