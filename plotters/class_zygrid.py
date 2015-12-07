@@ -69,18 +69,16 @@ class Zygrid:
     def __init__(self, iterables, **kwargs):
         self.data = iterables
         self.zyformat = {}
-        # mebbe 'rows' as kwarg for 'row_flag' is a bad idea...
-        self.zyformat['row_flag'] = kwargs.get('row_flag', True)
         self.zyformat['column_widths'] = kwargs.get('column_widths',
                                                     'flexible')
         self.zyformat['wrap'] = kwargs.get('wrap', False)
         self.zyformat['color'] = kwargs.get('color', False)
         # both column_names and row_names get routed to functions to set their
         # values
-        self.column_names = kwargs.get('column_names', None)
-        self.row_names = kwargs.get('row_names', None)
+        self.column_names = kwargs.get('column_names', [])
+        self.row_names = kwargs.get('row_names', [])
+        self.row_flag = kwargs.get('row_flag', True)
         # the following are `magic` for now:
-        #  self.wrap = False
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
         #  self.kwargs = kwargs
@@ -92,31 +90,29 @@ class Zygrid:
         elif attrname in self.__dict__.keys():
             return self.__dict__[attrname]
 
-    def __setattr__(self, attrname, value):
-        if attrname == 'row_flag':
-            if value not in (True, False):
-                raise ValueError(value)
-            if value != self.__dict__.get('row_flag', True):
-                object.__setattr__(self, attrname, value)
-                if len(self.column_names) > 0:
-                    temp = self.column_names
-                    self.column_names = self.row_names
-                    self.row_names = temp
-            else:
-                object.__setattr__(self, attrname, value)
-        #  elif attrname in self.zyformat.keys():
-            #  self.zupdate(attrname, value)
-        else:
-            object.__setattr__(self, attrname, value)
+    #  def __setattr__(self, attrname, value):
+        #  if attrname == 'row_flag':
+            #  if value not in (True, False):
+                #  raise ValueError(value)
+            #  if value != self.__dict__.get('row_flag', True):
+                #  object.__setattr__(self, attrname, value)
+                #  if len(self.column_names) > 0:
+                    #  temp = self.column_names
+                    #  self.column_names = self.row_names
+                    #  self.row_names = temp
+            #  else:
+                #  object.__setattr__(self, attrname, value)
+        #  else:
+        #  object.__setattr__(self, attrname, value)
 
     def __len__(self):
-        if self.zyformat['row_flag'] is False:
+        if self.row_flag is False:
             return len(self.data[0])
         else:
             return len(self.data)
 
     def __getitem__(self, ind):
-        if self.zyformat['row_flag'] is True:
+        if self.row_flag is True:
             return self.data[ind]
         else:
             if isinstance(ind, int):
@@ -146,14 +142,20 @@ class Zygrid:
         if key in self.zyformat.keys():
             self.zyformat[key] = value
 
+##-----------------------------------------------------------------------------
+##
+##  Properties
+##
+##-----------------------------------------------------------------------------
+
     @property
     def width(self):
-        return (len(self.data[0]) if self.zyformat['row_flag'] is True else
+        return (len(self.data[0]) if self.row_flag is True else
                 len(self.data))
 
     @property
     def length(self):
-        return (len(self.data[0]) if self.zyformat['row_flag'] is False else
+        return (len(self.data[0]) if self.row_flag is False else
                 len(self.data))
 
     @property
@@ -203,7 +205,7 @@ class Zygrid:
 
     @row_names.setter
     def row_names(self, rws):
-        if rws is None:
+        if rws is None or rws == []:
             self._rnams = []
         else:
             if self.length % len(rws) != 0:
@@ -217,13 +219,41 @@ class Zygrid:
 
     @column_names.setter
     def column_names(self, cols):
-        if cols is None:
+        if cols is None or cols == []:
             self._cnams = []
         else:
             if self.width % len(cols) != 0:
                 raise ValueError("Number of columns should be a multiple" +
                                  " of number of column names")
             self._cnams = cols[:]
+
+    @property
+    def row_flag(self):
+        if '_rw_flg' not in self.__dict__.keys():
+            self._rw_flg = True
+        return self._rw_flg
+
+    @row_flag.setter
+    def row_flag(self, value):
+        if value not in [True, False]:
+            raise AttributeError("row_flag must be True or False")
+        # do the setting
+        old_val = self._rw_flg
+        self._rw_flg = value
+        # now the clean-up...
+        if old_val != value:
+            if len(self.column_names) > 0 or len(self.row_names) > 0:
+                _ctemp = self.column_names[:]
+                _rtemp = self.row_names[:]
+                self.column_names = _rtemp
+                self.row_names = _ctemp
+                del _ctemp
+                del _rtemp
+                del old_val
+
+##-----------------------------------------------------------------------------
+##  End of Properties
+##-----------------------------------------------------------------------------
 
     def return_box_format_func(self):
         if self.zyformat.get('color', False) is not False:
@@ -303,7 +333,7 @@ class Zygrid:
             # rotated or not.
             generator_func = lambda fn, dt: [temp_func(fn(z)) for z in
                                              dt(self.data)]
-            if self.zyformat['row_flag'] is False:
+            if self.row_flag is False:
                 gen_tuple = (lambda x: x, lambda z: z[zind])
             else:
                 gen_tuple = (lambda x: x[zind], lambda z: z)
@@ -380,7 +410,7 @@ class Zygrid:
             items = []
             color_mask = []
             for i in range(start, stop):
-                if self.zyformat['row_flag'] is False:
+                if self.row_flag is False:
                     zzz, vvv = i, ind
                 else:
                     zzz, vvv = ind, i
@@ -463,7 +493,7 @@ class Zygrid:
         for i in range(self.length):
             res.append('')
             for j in range(self.width):
-                if self.zyformat['row_flag'] is True:
+                if self.row_flag is True:
                     z, y = i, j
                 else:
                     y, z = i, j
