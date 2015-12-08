@@ -71,8 +71,9 @@ class Zygrid:
         self.zyformat = {}
         self.zyformat['column_widths'] = kwargs.get('column_widths',
                                                     'flexible')
-        self.zyformat['wrap'] = kwargs.get('wrap', False)
+        self.wrap = kwargs.get('wrap', False)
         self.zyformat['color'] = kwargs.get('color', False)
+        self.zyformat['title'] = kwargs.get('title', None)
         # both column_names and row_names get routed to functions to set their
         # values
         self.column_names = kwargs.get('column_names', [])
@@ -91,18 +92,6 @@ class Zygrid:
             return self.__dict__[attrname]
 
     #  def __setattr__(self, attrname, value):
-        #  if attrname == 'row_flag':
-            #  if value not in (True, False):
-                #  raise ValueError(value)
-            #  if value != self.__dict__.get('row_flag', True):
-                #  object.__setattr__(self, attrname, value)
-                #  if len(self.column_names) > 0:
-                    #  temp = self.column_names
-                    #  self.column_names = self.row_names
-                    #  self.row_names = temp
-            #  else:
-                #  object.__setattr__(self, attrname, value)
-        #  else:
         #  object.__setattr__(self, attrname, value)
 
     def __len__(self):
@@ -132,8 +121,8 @@ class Zygrid:
             return temp
 
     def __str__(self):
-        return "[Zygrid Formatter Object, <{}> by <{}>]".format(self.width,
-                                                                self.length)
+        return "[Zygrid Format Object, <{}> by <{}>]".format(self.width,
+                                                             self.length)
 
     def return_format_dict(self):
         pass
@@ -142,11 +131,11 @@ class Zygrid:
         if key in self.zyformat.keys():
             self.zyformat[key] = value
 
-##-----------------------------------------------------------------------------
-##
-##  Properties
-##
-##-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+#
+#  Properties
+#
+# -----------------------------------------------------------------------------
 
     @property
     def width(self):
@@ -185,6 +174,7 @@ class Zygrid:
     def box_width(self, value):
         value = max(self.minimum_box_width, value)
         self.zyformat['box_width'] = value
+        # get a nasty infinite recursion if we use self.padding:
         self.zyformat['padding'] = value - self.minimum_box_width + 1
 
     @property
@@ -251,9 +241,9 @@ class Zygrid:
                 del _rtemp
                 del old_val
 
-##-----------------------------------------------------------------------------
-##  End of Properties
-##-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+#  End of Properties
+# -----------------------------------------------------------------------------
 
     def return_box_format_func(self):
         if self.zyformat.get('color', False) is not False:
@@ -269,7 +259,16 @@ class Zygrid:
 
     def max_list_size(self, iters):
         if len(iters) > 0:
-            return max(list(len(str(i)) for i in iters))
+            #  return max(list(len(str(i)) for i in iters))
+            biggest = 0
+            for it in iters:
+                if isinstance(it, list) or isinstance(it, tuple):
+                    temp = self.max_list_size(it)
+                else:
+                    temp = len(str(it))
+                if temp > biggest:
+                    biggest = temp
+            return biggest
         else:
             return 0
 
@@ -317,10 +316,10 @@ class Zygrid:
         elif self.zyformat['column_widths'] == 'flexible':
             # First, how many results do we need(`rnge`) and whether we need to
             # get single columns or multiples 
-            if self.zyformat.get('wrap', False) == 'columns':
+            if self.wrap == 'columns':
                 rnge = len(self.column_names)
                 target = lambda x: range(x, self.width, len(self.column_names))
-            elif self.zyformat.get('wrap', False) is False:
+            elif self.wrap is False:
                 rnge = self.width
                 target = lambda x: range(x, x+1)
             # if 'color' is true, then results will be a 3-tuple, so we need to
@@ -342,29 +341,47 @@ class Zygrid:
                 temp_list = []
                 for zind in target(i):
                     temp_list += generator_func(*gen_tuple)
-                    #  temp_list += [temp_func(z) for z in self.data[zind]]
                 temp = max(temp_list)
                 temp_widths.append(temp + padding)
         return temp_widths
 
-    def temp_return_format(self):
-        return {'header':   ['col_names', 'blank'],
+    def temp_return_layout(self):
+        #  return {'header':   ['title', 'col_names', 'blank'],
+        return {'header':   ['title', 'blank'],
                 'body':     ['line', 'rows'],
-                'footer':   ['line']}
+                #  'footer':   ['line']}
+                'footer':   ['line', 'col_names']}
 
-    def formatting_funcs(self):
+    def layout_funcs(self):
+        def title(_, start, stop):
+            if self.zyformat.get('title', None) is None:
+                return
+            if self.wrap is False:
+                zemp = self.width
+            elif self.wrap == 'columns':
+                zemp = len(self.column_names)
+            if zemp < stop:
+                stop -= len(self.column_names)
+            target = sum(self.__col_wid[start:stop])
+            if self.row_names != []:
+                res = ' ' * (self.max_list_size(
+                    self.row_names) + 1)
+            else:
+                res = ''
+            return res + "{:^{wid}}".format(self.zyformat['title'], wid=target)
+
         def col_names(_, start, stop):
             if self.verbose:
                 print("hitting col func...")
             if self.column_names == []:
                 return
-            if self.zyformat.get('wrap', False) is False:
+            if self.wrap is False:
                 zemp = self.width
-            elif self.zyformat.get('wrap', False) == 'columns':
+            elif self.wrap == 'columns':
                 zemp = len(self.column_names)
             else:
                 raise ValueError("{} not a valid value for 'wrap'".format(
-                    self.zyformat.get('wrap', False)))
+                    self.wrap))
             if self.verbose:
                 print("survivied the empty name test...")
             col_name_trim_func = self.zyformat.get('col_trim_func',
@@ -381,7 +398,7 @@ class Zygrid:
                 # make sure we don't hang if there are no column names
                 if len(self.column_names) == 0:
                     temp = self.width
-                elif self.zyformat.get('wrap', False) == 'columns':
+                elif self.wrap == 'columns':
                     temp = len(self.column_names)
                 else:
                     temp = self.width
@@ -398,13 +415,22 @@ class Zygrid:
                 res += '+'
                 return res
             lin = None
-            if ind % self.length == 0:
+            targ = []
+            # swap the next line with the following four to NOT get a line in
+            # between data pages
+            targ.append(len(self.row_names))
+            # if self.wrap == 'columns':
+            #     targ.append(len(self.row_names))
+            # else:
+            #     targ.append(self.length)
+            if any(map(lambda x: ind % x == 0, targ)):
                 lin = make_line()
             return lin
 
         def new_rows(ind, start, stop):
             box_trim_func = self.zyformat.get('box_trim_func',
-                                              lambda x: str(x))
+                                              #  lambda x: str(x))
+                                              lambda x: x)
             #  box_format_func = self.return_box_format_func()
             # first we trim & cut the box contents
             items = []
@@ -439,7 +465,7 @@ class Zygrid:
                         self.row_names[ind % len(self.row_names)] if lin ==
                         0 else '',
                         wid=rnam_wid)
-            if len(self.column_names) == 0 or self.zyformat['wrap'] is False:
+            if len(self.column_names) == 0 or self.wrap is False:
                 zemp = self.width
             else:
                 zemp = len(self.column_names)
@@ -477,6 +503,7 @@ class Zygrid:
             return res
 
         _dic = {'col_names':    col_names,
+                'title':        title,
                 'line':         line,
                 #  'rows':         rows,
                 'rows':         new_rows,
@@ -502,42 +529,40 @@ class Zygrid:
         for lin in res:
             print(lin)
 
-    # TODO rename this and associated yabberdy yab to `layout` and
-    # `layout_parser` so there is less confusion with the stuff in zyformat
-    def format_parser(self, begin_offset=0, end_offset=0,
+    def layout_parser(self, begin_offset=0, end_offset=0,
                       row_offset=0, last_row_offset=0):
         """ Return a list of formatting functions for use on self.data.  """
         self.__col_wid = self.get_column_widths()
-        formatter = self.temp_return_format()
-        format_func_dic = self.formatting_funcs()
-        formatters_list = []
-        # hacktastic defaults for now...
-        if self.zyformat.get('wrap', False) == 'columns':
+        layout = self.temp_return_layout()
+        layout_func_dic = self.layout_funcs()
+        layout_stack = []
+
+        if self.wrap == 'columns':
             jump = len(self.column_names)
         else:
             jump = self.width
         begin = 0
         end = self.width
-        for frm in formatter['header']:
+        for frm in layout['header']:
             ind = 0
-            formatters_list.append((format_func_dic[frm],
-                                   (ind, begin + begin_offset,
-                                   min(begin + jump - end_offset,
-                                       end))))
+            layout_stack.append((layout_func_dic[frm],
+                                 (ind, begin + begin_offset,
+                                 min(begin + jump - end_offset,
+                                     end))))
         while begin < end:
             for ind in range(row_offset, self.length - last_row_offset):
-                for frm in formatter['body']:
-                    formatters_list.append((format_func_dic[frm],
-                                            (ind, begin + begin_offset,
-                                            min(begin + jump - end_offset,
-                                                end))))
+                for frm in layout['body']:
+                    layout_stack.append((layout_func_dic[frm],
+                                         (ind, begin + begin_offset,
+                                         min(begin + jump - end_offset,
+                                             end))))
             begin += jump
-        for frm in formatter['footer']:
+        for frm in layout['footer']:
             ind = self.length
-            formatters_list.append((format_func_dic[frm],
-                                   (ind, begin_offset,
-                                   min(jump - end_offset, end))))
-        return formatters_list
+            layout_stack.append((layout_func_dic[frm],
+                                 (ind, begin_offset,
+                                 min(jump - end_offset, end))))
+        return layout_stack
 
     def show(self, *args, **kwargs):
         if len(args) > 4:
@@ -550,7 +575,7 @@ class Zygrid:
         # settings
         for key in kwargs:
             self.zupdate(key, kwargs[key])
-        funcs = self.format_parser(begin_offset=begin,
+        funcs = self.layout_parser(begin_offset=begin,
                                    end_offset=end,
                                    row_offset=row_offset,
                                    last_row_offset=last_row_offset)
