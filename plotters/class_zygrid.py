@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#coumns! /usr/local/bin/python3
 # coding=utf-8
 #
 # -----------------------------------------------------------------------------
@@ -30,9 +30,15 @@ class Zygrid:
                     'wrap':     whether or not rows are wrapped after
                                 a certain length.
                                 Options:
-                                    int: wrap after that many columns
+                                    int: wrap after that many columns (not yet
+                                    implemented)
                                     'max': wrap after as many columns
-                                    will fit on terminal screen
+                                    will fit on terminal screen (not yet
+                                    implemented)
+                                    'columns': if there are multiple `pages`
+                                    (i.e. total columns are a multiple of the
+                                    number of column names) the iterables will
+                                    be wrapped when the column names repeat.
                     'column_names':
                                 optional column names
                     'column_widths':
@@ -52,13 +58,16 @@ class Zygrid:
                                     names. Defaults to 'flexible' if no
                                     column names given.
                     'padding':
-                                Extra width for added to coumns.
+                                Extra width for added to columns. Padding is
+                                defined as box_width - minimum_box_width, and
+                                updating box_width will also change padding
+                                and vice-versa.
                     'column_names_trim_func':
                                 function used to trim column names longer
                                 than box_width
                     'row_names':    optional row names
                     'box_width':    otherwise box_width will be set as
-                                a function of the widest item
+                                padding plus the minimum box width
                     'table_padding': padding of blank spaces to the right
                                 and left of the formatted table
                     'table_justification':
@@ -79,6 +88,11 @@ class Zygrid:
         self.column_names = kwargs.get('column_names', [])
         self.row_names = kwargs.get('row_names', [])
         self.row_flag = kwargs.get('row_flag', True)
+        self.row_names_justification = kwargs.get('row_names_justification',
+                                                  'center')
+        self.column_names_justification = kwargs.get(
+            'column_names_justification', 'center')
+        self.box_justification = kwargs.get('box_justification', 'center')
         # the following are `magic` for now:
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
@@ -353,8 +367,10 @@ class Zygrid:
                 'footer':   ['line', 'col_names']}
 
     def layout_funcs(self):
-        def title(_, start, stop):
+        def title(ind, start, stop):
             if self.zyformat.get('title', None) is None:
+                return
+            if ind != 0:
                 return
             if self.wrap is False:
                 zemp = self.width
@@ -375,6 +391,15 @@ class Zygrid:
                 print("hitting col func...")
             if self.column_names == []:
                 return
+            if self.column_names_justification == 'right':
+                just = '>'
+            elif self.column_names_justification == 'left':
+                just = '<'
+            elif self.column_names_justification == 'center':
+                just = '^'
+            else:
+                raise ValueError("Bad value for column_names_justification:" +
+                                 " {}".format(self.column_names_justification))
             if self.wrap is False:
                 zemp = self.width
             elif self.wrap == 'columns':
@@ -385,7 +410,7 @@ class Zygrid:
             if self.verbose:
                 print("survivied the empty name test...")
             col_name_trim_func = self.zyformat.get('col_trim_func',
-                lambda x, y: '{:^{wid}}'.format(x[0:y], wid=y))
+                lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
             res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
                 res += col_name_trim_func(
@@ -433,6 +458,24 @@ class Zygrid:
                                               lambda x: x)
             #  box_format_func = self.return_box_format_func()
             # first we trim & cut the box contents
+            if self.box_justification == 'right':
+                just = '>'
+            elif self.box_justification == 'left':
+                just = '<'
+            elif self.box_justification == 'center':
+                just = '^'
+            else:
+                raise ValueError("Bad value for box_justification:" +
+                                 " {}".format(self.box_justification))
+            if self.row_names_justification == 'right':
+                rjust = '>'
+            elif self.row_names_justification == 'left':
+                rjust = '<'
+            elif self.row_names_justification == 'center':
+                rjust = '^'
+            else:
+                raise ValueError("Bad value for row_names_justification:" +
+                                 " {}".format(self.row_names_justification))
             items = []
             color_mask = []
             for i in range(start, stop):
@@ -461,9 +504,10 @@ class Zygrid:
             if len(self.row_names) > 0:
                 rnam_wid = self.max_list_size(self.row_names)
                 for lin in range(lines):
-                    res[lin] += '{:<{wid}} '.format(
+                    res[lin] += '{:{rj}{wid}} '.format(
                         self.row_names[ind % len(self.row_names)] if lin ==
                         0 else '',
+                        rj=rjust,
                         wid=rnam_wid)
             if len(self.column_names) == 0 or self.wrap is False:
                 zemp = self.width
@@ -485,10 +529,11 @@ class Zygrid:
                     elif isinstance(items[it], tuple) and lin < len(items[it]):
                         zitm = items[it][lin]
                     #  res[lin] += '{:^{wid}}'.format(
-                    res[lin] += "{}{:^{wid}}{}".format(
+                    res[lin] += "{}{:{j}{wid}}{}".format(
                         color_mask[it],
                         zitm,
                         '\033[0m',
+                        j=just,
                         wid=self.__col_wid[it % zemp])
             return res
 
