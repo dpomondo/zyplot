@@ -89,10 +89,10 @@ class Zygrid:
         self.row_names = kwargs.get('row_names', [])
         self.row_flag = kwargs.get('row_flag', True)
         self.row_names_justification = kwargs.get('row_names_justification',
-                                                  'center')
+                                                  'right')
         self.column_names_justification = kwargs.get(
             'column_names_justification', 'center')
-        self.box_justification = kwargs.get('box_justification', 'center')
+        self.box_justification = kwargs.get('box_justification', 'left')
         # the following are `magic` for now:
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
@@ -259,6 +259,9 @@ class Zygrid:
 #  End of Properties
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+#   Helper Functions
+# -----------------------------------------------------------------------------
     def return_box_format_func(self):
         if self.zyformat.get('color', False) is not False:
             return lambda x, y: "{}{:^{wid}}{}".format(*x, wid=y)
@@ -299,6 +302,21 @@ class Zygrid:
                                      self.max_list_size(
                                          list(i[1] for i in it)))
         return temp_box_width + padding
+
+    def return_justification(self, form):
+        if form == 'right':
+            return '>'
+        elif form == 'left':
+            return '<'
+        elif form == 'center':
+            return '^'
+        else:
+            raise ValueError("Bad value: {} ".format(form))
+
+
+# -----------------------------------------------------------------------------
+#   End of Helper Functions
+# -----------------------------------------------------------------------------
 
     def get_column_widths(self):
         """ Create a list of ints for use in formatting columns.    """
@@ -391,15 +409,7 @@ class Zygrid:
                 print("hitting col func...")
             if self.column_names == []:
                 return
-            if self.column_names_justification == 'right':
-                just = '>'
-            elif self.column_names_justification == 'left':
-                just = '<'
-            elif self.column_names_justification == 'center':
-                just = '^'
-            else:
-                raise ValueError("Bad value for column_names_justification:" +
-                                 " {}".format(self.column_names_justification))
+            just = self.return_justification(self.column_names_justification)
             if self.wrap is False:
                 zemp = self.width
             elif self.wrap == 'columns':
@@ -458,40 +468,36 @@ class Zygrid:
                                               lambda x: x)
             #  box_format_func = self.return_box_format_func()
             # first we trim & cut the box contents
-            if self.box_justification == 'right':
-                just = '>'
-            elif self.box_justification == 'left':
-                just = '<'
-            elif self.box_justification == 'center':
-                just = '^'
-            else:
-                raise ValueError("Bad value for box_justification:" +
-                                 " {}".format(self.box_justification))
-            if self.row_names_justification == 'right':
-                rjust = '>'
-            elif self.row_names_justification == 'left':
-                rjust = '<'
-            elif self.row_names_justification == 'center':
-                rjust = '^'
-            else:
-                raise ValueError("Bad value for row_names_justification:" +
-                                 " {}".format(self.row_names_justification))
+            just = self.return_justification(self.box_justification)
+            rjust = self.return_justification(self.row_names_justification)
             items = []
             color_mask = []
-            for i in range(start, stop):
-                if self.row_flag is False:
-                    zzz, vvv = i, ind
-                else:
-                    zzz, vvv = ind, i
-                if self.zyformat.get('color', False) is False:
-                    itm = self.data[zzz][vvv]
-                    color = ''
-                else:
-                    itm = self.data[zzz][vvv][1]
-                    color = self.data[zzz][vvv][0]
-                #  items.append(box_trim_func(self.data[zzz][vvv]))
-                items.append(box_trim_func(itm))
-                color_mask.append(color)
+            if self.row_flag is True:
+                rnge = range(start, stop)
+                target = range(ind, ind+1)
+            else:
+                rnge = range(start, stop)
+                if self.wrap is False:
+                    #  target = range(ind, self.length, len(self.column_names))
+                    target = range(ind, ind+1)
+                elif self.wrap == 'columns':
+                    target = range(ind, ind+1)
+            for i in rnge:
+                for j in target:
+                    if self.row_flag is False:
+                        zzz, vvv = i, j
+                    else:
+                        zzz, vvv = j, i
+                    if self.zyformat.get('color', False) is False:
+                        itm = self.data[zzz][vvv]
+                        color = ''
+                    else:
+                        itm = self.data[zzz][vvv][1]
+                        color = self.data[zzz][vvv][0]
+                    #  items.append(box_trim_func(self.data[zzz][vvv]))
+                    items.append(box_trim_func(itm))
+                    color_mask.append(color)
+            # Dealing with multi-line boxes
             lines = 1
             for it in items:
                 if isinstance(it, list) or isinstance(it, tuple):
@@ -522,19 +528,26 @@ class Zygrid:
                     # `items` list consists of ints or floats, for example)
                     # Possible fix: require box_trim_func to return either
                     # a list of strings or a string
-                    elif isinstance(items[it], str) and lin == 0:
-                        zitm = items[it]
                     elif isinstance(items[it], list) and lin < len(items[it]):
                         zitm = items[it][lin]
                     elif isinstance(items[it], tuple) and lin < len(items[it]):
                         zitm = items[it][lin]
+                    # this line should ONLY be hit if items[it] is a singleton
+                    # type (str, int, float, etc) and so should go on the first
+                    # line. In theory it SHOULD be equivalent to the
+                    # commented-out line that follows, but more general
+                    elif lin == 0:
+                    #  elif isinstance(items[it], str) and lin == 0:
+                        zitm = items[it]
                     #  res[lin] += '{:^{wid}}'.format(
-                    res[lin] += "{}{:{j}{wid}}{}".format(
+                    pad = 1 + (self.padding - 1) // 2
+                    res[lin] += "{}{}{:{j}{wid}}{}".format(
                         color_mask[it],
+                        ' ' * pad,
                         zitm,
                         '\033[0m',
                         j=just,
-                        wid=self.__col_wid[it % zemp])
+                        wid=self.__col_wid[it % zemp] - pad)
             return res
 
         def blank(_, start, stop):
@@ -582,12 +595,18 @@ class Zygrid:
         layout_func_dic = self.layout_funcs()
         layout_stack = []
 
-        if self.wrap == 'columns':
-            jump = len(self.column_names)
-        else:
-            jump = self.width
         begin = 0
         end = self.width
+        if self.wrap == 'columns':
+            jump = len(self.column_names)
+            target = self.length
+        else:
+            if self.row_flag is True:
+                jump = self.width
+                target = self.length
+            else:
+                jump = self.length
+                target = self.width
         for frm in layout['header']:
             ind = 0
             layout_stack.append((layout_func_dic[frm],
@@ -595,7 +614,7 @@ class Zygrid:
                                  min(begin + jump - end_offset,
                                      end))))
         while begin < end:
-            for ind in range(row_offset, self.length - last_row_offset):
+            for ind in range(row_offset, target - last_row_offset):
                 for frm in layout['body']:
                     layout_stack.append((layout_func_dic[frm],
                                          (ind, begin + begin_offset,
