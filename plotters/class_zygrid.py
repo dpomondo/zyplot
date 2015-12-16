@@ -347,7 +347,7 @@ class Zygrid:
                                            len(nam) + padding))
         elif self.zyformat['column_widths'] == 'flexible':
             # First, how many results do we need(`rnge`) and whether we need to
-            # get single columns or multiples 
+            # get single columns or multiples
             if self.wrap == 'columns':
                 rnge = len(self.column_names)
                 target = lambda x: range(x, self.width, len(self.column_names))
@@ -655,3 +655,43 @@ class Zygrid:
                     res.extend(temp)
         for lin in res:
                 print(lin)
+
+
+def zygrid_test(grid):
+    thunder = [(True, False),
+               (True, 'columns'),
+               (False, False),
+               (False, 'columns')]
+    for tup in thunder:
+        grid.row_flag = tup[0]
+        grid.wrap = tup[1]
+        grid.zyformat['title'] = "row_flag: {} wrap: {}".format(grid.row_flag,
+                                                                grid.wrap)
+        grid.zyformat['title'] += " wid: {} len: {}".format(grid.width,
+                                                            grid.length)
+        grid.show()
+        print()
+
+
+def randword(s, e):
+    import random
+    import string
+
+    return ''.join(random.sample(string.ascii_lowercase,
+                                 random.randint(s, e)))
+
+
+def table_test(cols=6, rows=3, box=(3, 7), cnams=7, rnams=7):
+    working = []
+    for i in range(rows):
+        working.append([])
+        for j in range(cols):
+            working[-1].append(randword(box[0], box[1]))
+
+    colnams, rownams = [], []
+    for i in range(cols):
+        colnams.append(randword(1, cnams))
+    for j in range(rows):
+        rownams.append(randword(1, rnams))
+
+    return working, colnams, rownams
