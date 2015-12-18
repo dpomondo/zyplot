@@ -438,15 +438,14 @@ class Zygrid:
                 else:
                     temp = self.width
                 if self.row_names != []:
-                    res = ' ' * (self.max_list_size(
-                        self.row_names) + 1)
+                    res = ' ' * (self.max_list_size(self.row_names) + 1)
                 else:
                     res = ''
                 for i in range(start, stop - 1):
                     res += '+'
                     res += '-' * (self.__col_wid[i % temp] - 1)
                 res += '+'
-                res += '-' * (self.__col_wid[i % temp] - 2)
+                res += '-' * (self.__col_wid[(stop - 1) % temp] - 2)
                 res += '+'
                 return res
             lin = None
@@ -657,12 +656,20 @@ class Zygrid:
                 print(lin)
 
 
-def zygrid_test(grid):
+def zygrid_test(grid, col_wids=False):
     thunder = [(True, False),
                (True, 'columns'),
                (False, False),
                (False, 'columns')]
+    if col_wids is True:
+        temp = grid.column_names
+        working = []
+        for ind in range(len(grid.column_names)):
+            working.append("{}: {}".format(ind, grid._Zygrid__col_wid[ind]))
+        grid.column_names = working
     for tup in thunder:
+        print('-' * 79)
+        print()
         grid.row_flag = tup[0]
         grid.wrap = tup[1]
         grid.zyformat['title'] = "row_flag: {} wrap: {}".format(grid.row_flag,
@@ -671,6 +678,8 @@ def zygrid_test(grid):
                                                             grid.length)
         grid.show()
         print()
+    if col_wids is True:
+        grid.column_names = temp
 
 
 def randword(s, e):
@@ -681,12 +690,27 @@ def randword(s, e):
                                  random.randint(s, e)))
 
 
-def table_test(cols=6, rows=3, box=(3, 7), cnams=7, rnams=7):
+def color_maker(clear=False):
+    if clear is False:
+        import random
+        return "\033[38;5;{}m\033[48;5;{}m".format(random.randint(0, 255),
+                                                   random.randint(0, 255))
+    else:
+        return '\033[0m'
+
+
+def table_test(cols=6, rows=3, box=(3, 7), cnams=7, rnams=7, color=False):
+    clear = color_maker(clear=True)
     working = []
     for i in range(rows):
         working.append([])
         for j in range(cols):
-            working[-1].append(randword(box[0], box[1]))
+            if color is False:
+                working[-1].append(randword(box[0], box[1]))
+            else:
+                working[-1].append((color_maker(), 
+                                    randword(box[0], box[1]),
+                                    clear))
 
     colnams, rownams = [], []
     for i in range(cols):
