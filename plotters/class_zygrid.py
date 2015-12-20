@@ -165,7 +165,8 @@ class Zygrid:
     def depth(self):
         """ Return how many columns each column name refers to.
         """
-        if self.zyformat.get('column_names', None) is None:
+        #  if self.zyformat.get('column_names', None) is None:
+        if self.column_names == []
             return 1
         else:
             return int(self.width / len(self.column_names))
@@ -673,7 +674,10 @@ class Zygrid:
         begin = 0
         end = self.width
         if self.wrap == 'columns':
-            jump = len(self.column_names)
+            if self.column_names == []:
+                jump = self.width
+            else:
+                jump = len(self.column_names)
             target = self.length
         else:
             if self.row_flag is True:
@@ -696,6 +700,9 @@ class Zygrid:
                                          min(begin + jump - end_offset,
                                              end))))
             begin += jump
+            if begin > self.width * 2:
+                print("help me! I'ma looping! begin:{} jump:{}".format(begin,
+                                                                       jump))
         for frm in layout['footer']:
             ind = self.length
             layout_stack.append((layout_func_dic[frm],
@@ -737,6 +744,9 @@ def zygrid_test(grid, col_wids=False):
                (True, 'columns'),
                (False, False),
                (False, 'columns')]
+    temp_title = grid.zyformat['title']
+    temp_wrap = grid.wrap
+    temp_row_flag = grid.row_flag
     if col_wids is True:
         temp = grid.column_names
         working = []
@@ -754,6 +764,9 @@ def zygrid_test(grid, col_wids=False):
                                                             grid.length)
         grid.show()
         print()
+    grid.row_flag = temp_row_flag
+    grid.wrap = temp_wrap
+    grid.zyformat['title'] = temp_title
     if col_wids is True:
         grid.column_names = temp
 
