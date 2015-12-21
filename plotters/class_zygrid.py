@@ -166,7 +166,7 @@ class Zygrid:
         """ Return how many columns each column name refers to.
         """
         #  if self.zyformat.get('column_names', None) is None:
-        if self.column_names == []
+        if self.column_names == []:
             return 1
         else:
             return int(self.width / len(self.column_names))
@@ -350,8 +350,13 @@ class Zygrid:
             # First, how many results do we need(`rnge`) and whether we need to
             # get single columns or multiples
             if self.wrap == 'columns':
-                rnge = len(self.column_names)
-                target = lambda x: range(x, self.width, len(self.column_names))
+                if self.column_names == []:
+                    rnge = self.width
+                    target_skip = self.width
+                else:
+                    rnge = len(self.column_names)
+                    target_skip = len(self.column_names)
+                target = lambda x: range(x, self.width, target_skip)
             elif self.wrap is False:
                 rnge = self.width
                 target = lambda x: range(x, x+1)
@@ -369,7 +374,7 @@ class Zygrid:
                 gen_tuple = (lambda x: x, lambda z: z[zind])
             else:
                 gen_tuple = (lambda x: x[zind], lambda z: z)
-            # now we pull the trigger and build the list!
+            # now pull the trigger and build the list!
             for i in range(rnge):
                 temp_list = []
                 for zind in target(i):
@@ -382,6 +387,7 @@ class Zygrid:
         #  return {'header':   ['title', 'col_names', 'blank'],
         return {'header':   ['title', 'blank'],
                 'body':     ['line', 'rows'],
+                #  'body':     ['rows'],
                 #  'footer':   ['line']}
                 'footer':   ['line', 'col_names']}
 
