@@ -82,7 +82,7 @@ class Zygrid:
                                                     'flexible')
         self.wrap = kwargs.get('wrap', False)
         self.zyformat['color'] = kwargs.get('color', False)
-        self.zyformat['title'] = kwargs.get('title', None)
+        self.title = kwargs.get('title', None)
         # both column_names and row_names get routed to functions to set their
         # values
         self.column_names = kwargs.get('column_names', [])
@@ -393,7 +393,8 @@ class Zygrid:
 
     def layout_funcs(self):
         def title(ind, start, stop):
-            if self.zyformat.get('title', None) is None:
+            #  if self.zyformat.get('title', None) is None:
+            if self.title is None:
                 return
             if ind != 0:
                 return
@@ -409,7 +410,7 @@ class Zygrid:
                     self.row_names) + 1)
             else:
                 res = ''
-            return res + "{:^{wid}}".format(self.zyformat['title'], wid=target)
+            return res + "{:^{wid}}".format(self.title, wid=target)
 
         def col_names(_, start, stop):
             if self.verbose:
@@ -472,6 +473,7 @@ class Zygrid:
             return lin
 
         def old_new_rows(ind, start, stop):
+            """ This function is deprecated and slated for obliteration """
             box_trim_func = self.zyformat.get('box_trim_func',
                                               #  lambda x: str(x))
                                               lambda x: x)
@@ -569,7 +571,11 @@ class Zygrid:
             rjust = self.return_justification(self.row_names_justification)
             items = []
             color_mask = []
-            for thing in self.__getitem__(ind)[start:stop]:
+            #  target_slice = self.__getitem__(ind)
+            #  target_slice = target_slice[start:stop]
+            target_slice = self.__getitem__(ind)[start:stop]
+            for thing in target_slice:
+            #  for thing in self.__getitem__(ind)[start:stop]:
                 if self.zyformat.get('color', False) is False:
                     itm = thing
                     color = ''
@@ -750,7 +756,7 @@ def zygrid_test(grid, col_wids=False):
                (True, 'columns'),
                (False, False),
                (False, 'columns')]
-    temp_title = grid.zyformat['title']
+    temp_title = grid.title
     temp_wrap = grid.wrap
     temp_row_flag = grid.row_flag
     if col_wids is True:
@@ -760,19 +766,24 @@ def zygrid_test(grid, col_wids=False):
             working.append("{}: {}".format(ind, grid._Zygrid__col_wid[ind]))
         grid.column_names = working
     for tup in thunder:
-        print('-' * 79)
-        print()
-        grid.row_flag = tup[0]
-        grid.wrap = tup[1]
-        grid.zyformat['title'] = "row_flag: {} wrap: {}".format(grid.row_flag,
-                                                                grid.wrap)
-        grid.zyformat['title'] += " wid: {} len: {}".format(grid.width,
-                                                            grid.length)
-        grid.show()
-        print()
+        try:
+            print('-' * 79)
+            print()
+            grid.row_flag = tup[0]
+            grid.wrap = tup[1]
+            grid.title = "row_flag: {} wrap: {}".format(grid.row_flag,
+                                                        grid.wrap)
+            grid.title += " wid: {} len: {}".format(grid.width,
+                                                    grid.length)
+            grid.show()
+            print()
+        except Exception as e:
+            print("Caught exception: {}".format(e))
+            print("Current... row_flag: {} wrap: {}".format(grid.row_flag,
+                                                            grid.wrap))
     grid.row_flag = temp_row_flag
     grid.wrap = temp_wrap
-    grid.zyformat['title'] = temp_title
+    grid.title = temp_title
     if col_wids is True:
         grid.column_names = temp
 
