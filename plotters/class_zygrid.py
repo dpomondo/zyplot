@@ -573,8 +573,16 @@ class Zygrid:
             color_mask = []
             #  target_slice = self.__getitem__(ind)
             #  target_slice = target_slice[start:stop]
-            target_slice = self.__getitem__(ind)[start:stop]
-            for thing in target_slice:
+            #  if self.wrap is False:
+                #  target_slice = []
+                #  for i in range(self.length):
+                    #  if i % self.width == ind:
+                        #  target_slice += self.__getitem__(i)
+            #  else:
+                #  target_slice = self.__getitem__(ind)
+
+            target_slice = self.__getitem__(ind)
+            for thing in target_slice[start:stop]:
             #  for thing in self.__getitem__(ind)[start:stop]:
                 if self.zyformat.get('color', False) is False:
                     itm = thing
@@ -692,12 +700,19 @@ class Zygrid:
                 jump = len(self.column_names)
             target = self.length
         else:
-            if self.row_flag is True:
-                jump = self.width
-                target = self.length
-            else:
-                jump = self.length
-                target = self.width
+            # # option one...
+            jump = self.width
+            target = self.length
+            # # option 2...
+            #  if self.row_flag is True:
+                #  jump = self.width
+                #  target = self.length
+            #  else:
+                #  jump = self.length
+                #  target = self.width
+            # # option 3
+            #  jump = max(self.width, self.length)
+            #  target = min(self.width, self.length)
         for frm in layout['header']:
             ind = 0
             layout_stack.append((layout_func_dic[frm],
