@@ -104,6 +104,8 @@ class Zygrid:
             return self.zyformat[attrname]
         elif attrname in self.__dict__.keys():
             return self.__dict__[attrname]
+        else:
+            raise AttributeError
 
     #  def __setattr__(self, attrname, value):
         #  object.__setattr__(self, attrname, value)
@@ -255,6 +257,11 @@ class Zygrid:
                 del _ctemp
                 del _rtemp
                 del old_val
+        #TODO: make sure the trim funcs get swapped if row_flag is changed:
+            #  row_name_trim_func = self.zyformat.get('row_trim_func',
+                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=rjust, wid=y))
+            #  col_name_trim_func = self.zyformat.get('col_trim_func',
+                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
 
 # -----------------------------------------------------------------------------
 #  End of Properties
@@ -413,8 +420,6 @@ class Zygrid:
             return res + "{:^{wid}}".format(self.title, wid=target)
 
         def col_names(_, start, stop):
-            if self.verbose:
-                print("hitting col func...")
             if self.column_names == []:
                 return
             just = self.return_justification(self.column_names_justification)
@@ -425,11 +430,13 @@ class Zygrid:
             else:
                 raise ValueError("{} not a valid value for 'wrap'".format(
                     self.wrap))
-            if self.verbose:
-                print("survivied the empty name test...")
             col_name_trim_func = self.zyformat.get('col_trim_func',
                 lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
-            res = ' ' * (self.max_list_size(self.row_names) + 1)
+            if hasattr(self, 'row_name_width'):
+                res = ' ' * (self.row_name_width + 1)
+            else:
+                # this returns an empty string if self.row_names == []
+                res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
                 res += col_name_trim_func(
                     self.column_names[i % len(self.column_names)],
@@ -446,7 +453,10 @@ class Zygrid:
                 else:
                     temp = self.width
                 if self.row_names != []:
-                    res = ' ' * (self.max_list_size(self.row_names) + 1)
+                    if hasattr(self, 'row_name_width'):
+                        res = ' ' * (self.row_name_width + 1)
+                    else:
+                        res = ' ' * (self.max_list_size(self.row_names) + 1)
                 else:
                     res = ''
                 for i in range(start, stop - 1):
@@ -472,95 +482,6 @@ class Zygrid:
                 lin = make_line()
             return lin
 
-        def old_new_rows(ind, start, stop):
-            """ This function is deprecated and slated for obliteration """
-            box_trim_func = self.zyformat.get('box_trim_func',
-                                              #  lambda x: str(x))
-                                              lambda x: x)
-            #  box_format_func = self.return_box_format_func()
-            # first we trim & cut the box contents
-            just = self.return_justification(self.box_justification)
-            rjust = self.return_justification(self.row_names_justification)
-            items = []
-            color_mask = []
-            if self.row_flag is True:
-                rnge = range(start, stop)
-                target = range(ind, ind+1)
-            else:
-                rnge = range(start, stop)
-                if self.wrap is False:
-                    #  target = range(ind, self.length, len(self.column_names))
-                    target = range(ind, ind+1)
-                elif self.wrap == 'columns':
-                    target = range(ind, ind+1)
-            for i in rnge:
-                for j in target:
-                    if self.row_flag is False:
-                        zzz, vvv = i, j
-                    else:
-                        zzz, vvv = j, i
-                    if self.zyformat.get('color', False) is False:
-                        itm = self.data[zzz][vvv]
-                        color = ''
-                    else:
-                        itm = self.data[zzz][vvv][1]
-                        color = self.data[zzz][vvv][0]
-                    #  items.append(box_trim_func(self.data[zzz][vvv]))
-                    items.append(box_trim_func(itm))
-                    color_mask.append(color)
-            # Dealing with multi-line boxes
-            lines = 1
-            for it in items:
-                if isinstance(it, list) or isinstance(it, tuple):
-                    if len(it) > lines:
-                        lines = len(it)
-            # now we construnct the strings
-            res = []
-            for lin in range(lines):
-                res.append('')
-            if len(self.row_names) > 0:
-                rnam_wid = self.max_list_size(self.row_names)
-                for lin in range(lines):
-                    res[lin] += '{:{rj}{wid}} '.format(
-                        self.row_names[ind % len(self.row_names)] if lin ==
-                        0 else '',
-                        rj=rjust,
-                        wid=rnam_wid)
-            if len(self.column_names) == 0 or self.wrap is False:
-                zemp = self.width
-            else:
-                zemp = len(self.column_names)
-            for lin in range(lines):
-                for it in range(len(items)):
-                    zitm = ''
-                    if lines == 1:
-                        zitm = items[it]
-                    # the following line is a bug waiting to happen (if the
-                    # `items` list consists of ints or floats, for example)
-                    # Possible fix: require box_trim_func to return either
-                    # a list of strings or a string
-                    elif isinstance(items[it], list) and lin < len(items[it]):
-                        zitm = items[it][lin]
-                    elif isinstance(items[it], tuple) and lin < len(items[it]):
-                        zitm = items[it][lin]
-                    # this line should ONLY be hit if items[it] is a singleton
-                    # type (str, int, float, etc) and so should go on the first
-                    # line. In theory it SHOULD be equivalent to the
-                    # commented-out line that follows, but more general
-                    elif lin == 0:
-                    #  elif isinstance(items[it], str) and lin == 0:
-                        zitm = items[it]
-                    #  res[lin] += '{:^{wid}}'.format(
-                    pad = 1 + (self.padding - 1) // 2
-                    res[lin] += "{}{}{:{j}{wid}}{}".format(
-                        color_mask[it],
-                        ' ' * pad,
-                        zitm,
-                        '\033[0m',
-                        j=just,
-                        wid=self.__col_wid[it % zemp] - pad)
-            return res
-
         def new_rows(ind, start, stop):
             box_trim_func = self.zyformat.get('box_trim_func',
                                               #  lambda x: str(x))
@@ -571,15 +492,6 @@ class Zygrid:
             rjust = self.return_justification(self.row_names_justification)
             items = []
             color_mask = []
-            #  target_slice = self.__getitem__(ind)
-            #  target_slice = target_slice[start:stop]
-            #  if self.wrap is False:
-                #  target_slice = []
-                #  for i in range(self.length):
-                    #  if i % self.width == ind:
-                        #  target_slice += self.__getitem__(i)
-            #  else:
-                #  target_slice = self.__getitem__(ind)
 
             target_slice = self.__getitem__(ind)
             for thing in target_slice[start:stop]:
@@ -603,14 +515,18 @@ class Zygrid:
             res = []
             for lin in range(lines):
                 res.append('')
+            row_name_trim_func = self.zyformat.get('row_trim_func',
+                lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=rjust, wid=y))
             if len(self.row_names) > 0:
-                rnam_wid = self.max_list_size(self.row_names)
+                if hasattr(self, 'row_name_width'):
+                    rnam_wid = self.row_name_width
+                else:
+                    rnam_wid = self.max_list_size(self.row_names)
                 for lin in range(lines):
-                    res[lin] += '{:{rj}{wid}} '.format(
+                    res[lin] += row_name_trim_func(
                         self.row_names[ind % len(self.row_names)] if lin ==
                         0 else '',
-                        rj=rjust,
-                        wid=rnam_wid)
+                        rnam_wid)
             if len(self.column_names) == 0 or self.wrap is False:
                 zemp = self.width
             else:
