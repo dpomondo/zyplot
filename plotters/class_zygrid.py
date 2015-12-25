@@ -94,9 +94,10 @@ class Zygrid:
             'column_names_justification', 'center')
         self.box_justification = kwargs.get('box_justification', 'left')
         self.zyformat['row_trim_func'] = kwargs.get('row_trim_func',
-            lambda x: x)
+                                                    lambda x: x)
         self.zyformat['col_trim_func'] = kwargs.get('col_trim_func',
-            lambda x: x)
+                                                    lambda x: x)
+        self.zyformat['line_chars'] = kwargs.get('line_chars', {})
         # the following are `magic` for now:
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
@@ -395,6 +396,14 @@ class Zygrid:
                 temp_widths.append(temp + padding)
         return temp_widths
 
+    def return_line_format(self):
+        return {'fill':             ' ',
+                'left_corner':      '+',
+                'right_corner':     '+',
+                'top':              '-',
+                'side':             '|'
+                }
+
     def temp_return_layout(self):
         #  return {'header':   ['title', 'col_names', 'blank'],
         return {'header':   ['title', 'blank'],
@@ -427,7 +436,6 @@ class Zygrid:
         def col_names(_, start, stop):
             if self.column_names == []:
                 return
-            #  just = self.return_justification(self.column_names_justification)
             if self.wrap is False:
                 zemp = self.width
             elif self.wrap == 'columns':
@@ -435,15 +443,13 @@ class Zygrid:
             else:
                 raise ValueError("{} not a valid value for 'wrap'".format(
                     self.wrap))
-            #  col_name_trim_func = self.zyformat.get('col_trim_func',
-                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
             if hasattr(self, 'row_name_width'):
                 res = ' ' * (self.row_name_width + 1)
             else:
                 # this returns an empty string if self.row_names == []
                 res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
-                _wid=self.__col_wid[i % zemp]
+                _wid = self.__col_wid[i % zemp]
                 #  res += col_name_trim_func(
                 res += '{:{j}{wid}}'.format(
                     self.zyformat['col_trim_func'](
@@ -455,6 +461,10 @@ class Zygrid:
 
         def line(ind, start, stop):
             def make_line():
+                linform = self.return_line_format()
+                if self.zyformat.get('line_chars', {}) != {}:
+                    for key in self.zyformat['line_chars']:
+                        linform[key] = self.zyformat['line_chars'][key]
                 # make sure we don't hang if there are no column names
                 if len(self.column_names) == 0:
                     temp = self.width
@@ -464,17 +474,18 @@ class Zygrid:
                     temp = self.width
                 if self.row_names != []:
                     if hasattr(self, 'row_name_width'):
-                        res = ' ' * (self.row_name_width + 1)
+                        res = linform['fill'] * (self.row_name_width + 1)
                     else:
-                        res = ' ' * (self.max_list_size(self.row_names) + 1)
+                        res = linform['fill'] * (self.max_list_size(
+                            self.row_names) + 1)
                 else:
                     res = ''
                 for i in range(start, stop - 1):
-                    res += '+'
-                    res += '-' * (self.__col_wid[i % temp] - 1)
-                res += '+'
-                res += '-' * (self.__col_wid[(stop - 1) % temp] - 2)
-                res += '+'
+                    res += linform['left_corner']
+                    res += linform['top'] * (self.__col_wid[i % temp] - 1)
+                res += linform['left_corner']
+                res += linform['top'] * (self.__col_wid[(stop - 1) % temp] - 2)
+                res += linform['right_corner']
                 return res
             lin = None
             targ = []
