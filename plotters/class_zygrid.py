@@ -93,6 +93,10 @@ class Zygrid:
         self.column_names_justification = kwargs.get(
             'column_names_justification', 'center')
         self.box_justification = kwargs.get('box_justification', 'left')
+        self.zyformat['row_trim_func'] = kwargs.get('row_trim_func',
+            lambda x: x)
+        self.zyformat['col_trim_func'] = kwargs.get('col_trim_func',
+            lambda x: x)
         # the following are `magic` for now:
         # and we store the rest for later
         self.padding = kwargs.get('padding', 1)
@@ -249,19 +253,20 @@ class Zygrid:
         self._rw_flg = value
         # now the clean-up...
         if old_val != value:
+            # swap column names and row names
             if len(self.column_names) > 0 or len(self.row_names) > 0:
                 _ctemp = self.column_names[:]
                 _rtemp = self.row_names[:]
                 self.column_names = _rtemp
                 self.row_names = _ctemp
-                del _ctemp
-                del _rtemp
-                del old_val
-        #TODO: make sure the trim funcs get swapped if row_flag is changed:
-            #  row_name_trim_func = self.zyformat.get('row_trim_func',
-                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=rjust, wid=y))
-            #  col_name_trim_func = self.zyformat.get('col_trim_func',
-                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
+            # swap trim funcs
+            _ctemp = self.zyformat['col_trim_func']
+            _rtemp = self.zyformat['row_trim_func']
+            self.zyformat['row_trim_func'] = _ctemp
+            self.zyformat['col_trim_func'] = _rtemp
+            del _ctemp
+            del _rtemp
+        del old_val
 
 # -----------------------------------------------------------------------------
 #  End of Properties
@@ -422,7 +427,7 @@ class Zygrid:
         def col_names(_, start, stop):
             if self.column_names == []:
                 return
-            just = self.return_justification(self.column_names_justification)
+            #  just = self.return_justification(self.column_names_justification)
             if self.wrap is False:
                 zemp = self.width
             elif self.wrap == 'columns':
@@ -430,17 +435,22 @@ class Zygrid:
             else:
                 raise ValueError("{} not a valid value for 'wrap'".format(
                     self.wrap))
-            col_name_trim_func = self.zyformat.get('col_trim_func',
-                lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
+            #  col_name_trim_func = self.zyformat.get('col_trim_func',
+                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=just, wid=y))
             if hasattr(self, 'row_name_width'):
                 res = ' ' * (self.row_name_width + 1)
             else:
                 # this returns an empty string if self.row_names == []
                 res = ' ' * (self.max_list_size(self.row_names) + 1)
             for i in range(start, stop):
-                res += col_name_trim_func(
-                    self.column_names[i % len(self.column_names)],
-                    self.__col_wid[i % zemp])
+                _wid=self.__col_wid[i % zemp]
+                #  res += col_name_trim_func(
+                res += '{:{j}{wid}}'.format(
+                    self.zyformat['col_trim_func'](
+                        self.column_names[i % len(self.column_names)])[:_wid],
+                    j=self.return_justification(
+                        self.column_names_justification),
+                    wid=_wid)
             return res
 
         def line(ind, start, stop):
@@ -488,8 +498,8 @@ class Zygrid:
                                               lambda x: x)
             #  box_format_func = self.return_box_format_func()
             # first we trim & cut the box contents
-            just = self.return_justification(self.box_justification)
-            rjust = self.return_justification(self.row_names_justification)
+            #  just = self.return_justification(self.box_justification)
+            #  rjust = self.return_justification(self.row_names_justification)
             items = []
             color_mask = []
 
@@ -515,18 +525,24 @@ class Zygrid:
             res = []
             for lin in range(lines):
                 res.append('')
-            row_name_trim_func = self.zyformat.get('row_trim_func',
-                lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=rjust, wid=y))
+            #  row_name_trim_func = self.zyformat.get('row_trim_func',
+                #  lambda x, y: '{:{j}{wid}}'.format(x[0:y], j=rjust, wid=y))
             if len(self.row_names) > 0:
                 if hasattr(self, 'row_name_width'):
                     rnam_wid = self.row_name_width
                 else:
                     rnam_wid = self.max_list_size(self.row_names)
+                assert isinstance(rnam_wid, int)
+                assert rnam_wid > 0
                 for lin in range(lines):
-                    res[lin] += row_name_trim_func(
-                        self.row_names[ind % len(self.row_names)] if lin ==
-                        0 else '',
-                        rnam_wid)
+                    #  res[lin] += row_name_trim_func(
+                    res[lin] += '{:{j}{wid}}'.format(
+                        self.zyformat['row_trim_func'](
+                            self.row_names[ind % len(self.row_names)] if lin ==
+                            0 else '')[:rnam_wid],
+                        j=self.return_justification(
+                            self.row_names_justification),
+                        wid=rnam_wid)
             if len(self.column_names) == 0 or self.wrap is False:
                 zemp = self.width
             else:
@@ -558,7 +574,8 @@ class Zygrid:
                         ' ' * pad,
                         zitm,
                         '\033[0m',
-                        j=just,
+                        j=self.return_justification(self.box_justification),
+                        #  j=just,
                         wid=self.__col_wid[it % zemp] - pad)
             return res
 
